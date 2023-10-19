@@ -32,13 +32,18 @@ from utils.constants import COCO_PANOPTIC_CLASSES
 st = LancasterStemmer()
 
 
-# build SAM model
+# [1] build SAM model
 import sys
 sys.path.append('../../sam')
 from sam import build_sam
-img_resolution = 512
+img_resolution = 256
 sam = build_sam.sam_model_registry['vit_b'](checkpoint='sam/ckpt/sam_vit_b_01ec64.pth', custom_img_size=img_resolution)
+from sam.utils.amg import build_all_layer_point_grids
+input_point = torch.as_tensor(build_all_layer_point_grids(16, 0, 1)[0] * img_resolution, dtype=torch.int64).cuda()
+input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
 
+# [2] build resampler
+from .resampler import PerceiverResampler
 
 class GeneralizedXdecoder(nn.Module):
 
@@ -323,9 +328,21 @@ class GeneralizedXdecoder(nn.Module):
 
         
     def forward_seg(self, batched_inputs):
-        images = [x["image"].to(self.device) for x in batched_inputs]
-        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, self.size_divisibility)
+        images = torch.cat([x["image"].to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
+        images = (images - self.pixel_mean) / self.pixel_std
+
+        # Modification to SAM input
+        sam_input = [
+            {
+                'image': x["image"].to(self.device),
+                'point_coords': input_point,
+                'point_labels': input_label,
+                'original_size': x["image"].shape[1:]
+            } for x in batched_inputs
+        ] 
+        # LBK SAM propagation
+        features = self.sam.individual_forward(sam_input, multimask_output=True)
+
 
         self.sem_seg_head.predictor.lang_encoder.get_text_embeddings(self.train_class_names, is_eval=False)
 
@@ -340,7 +357,7 @@ class GeneralizedXdecoder(nn.Module):
                 grounding_tokens = nn.utils.rnn.pad_sequence(grounding_tokens)
                 extra['grounding_tokens'] = grounding_tokens
 
-        features = self.backbone(images.tensor)
+        features = self.backbone(images)
         outputs = self.sem_seg_head(features, extra=extra)
 
         _outputs = {}
@@ -753,7 +770,7 @@ class GeneralizedXdecoder(nn.Module):
         return target_vlp
     
     def prepare_targets(self, batched_inputs, images):
-        h_pad, w_pad = images.tensor.shape[-2:]
+        h_pad, w_pad = images.shape[-2:]
         new_targets = []
         for idx, batch_per_image in enumerate(batched_inputs):
             targets_per_image = batch_per_image["instances"].to(self.device)
