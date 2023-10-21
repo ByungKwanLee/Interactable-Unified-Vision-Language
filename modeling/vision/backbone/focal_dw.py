@@ -756,11 +756,7 @@ class D2FocalNet(FocalNet, Backbone):
         assert (
             x.dim() == 4
         ), f"SwinTransformer takes an input of shape (N, C, H, W). Got {x.shape} instead!"
-        outputs = {}
-        y = super().forward(x)
-        for k in y.keys():
-            if k in self._out_features:
-                outputs[k] = y[k]
+        outputs = super().forward(x)
         return outputs
 
     def output_shape(self):

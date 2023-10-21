@@ -102,7 +102,8 @@ class GeneralizedXdecoder(nn.Module):
         super().__init__()
         self.backbone = backbone
         self.sem_seg_head = sem_seg_head
-        self.sam = sam
+        self.sam = sam # sam
+        self.resampler = PerceiverResampler # resampler in flamingo
         self.criterion = criterion
         self.losses = losses
         self.num_queries = num_queries
@@ -298,7 +299,7 @@ class GeneralizedXdecoder(nn.Module):
         # visualization
         a = batched_inputs['coco'][0]['image'].permute(1,2,0).flip(2).cpu().numpy()
         b = batched_inputs['coco'][0]['instances']._fields['gt_masks'][0].cpu().numpy()
-        c = batched_inputs['vlp'][0]['image'].permute(1,2,0).flip(2).cpu().numpy()
+        c = batched_inputs['vlp'][1]['image'].permute(1,2,0).flip(2).cpu().numpy()
         
         if self.training:
             losses = {}
@@ -328,34 +329,33 @@ class GeneralizedXdecoder(nn.Module):
 
         
     def forward_seg(self, batched_inputs):
-        images = torch.cat([x["image"].to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
+        images = torch.cat([x["image"].flip(0).to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
         images = (images - self.pixel_mean) / self.pixel_std
 
         # Modification to SAM input
         sam_input = [
             {
-                'image': x["image"].to(self.device),
+                'image': x["image"].flip(0).to(self.device),
                 'point_coords': input_point,
                 'point_labels': input_label,
                 'original_size': x["image"].shape[1:]
             } for x in batched_inputs
         ] 
         # LBK SAM propagation
-        features = self.sam.individual_forward(sam_input, multimask_output=True)
+        features = self.sam.individual_forward(sam_input, multimask_output=True, is_low_resol=True)
 
 
         self.sem_seg_head.predictor.lang_encoder.get_text_embeddings(self.train_class_names, is_eval=False)
 
         extra = {}
-        # mask classification target
-        if "instances" in batched_inputs[0]:
-            # input bounding box is checked to be correct.
-            targets = self.prepare_targets(batched_inputs, images)
+        targets = self.prepare_targets(batched_inputs, images)
 
-            if self.task_switch['grounding']:
-                grounding_tokens = [x['grounding_query_embs'] for x in targets] # need to pad for more than one grounding token
-                grounding_tokens = nn.utils.rnn.pad_sequence(grounding_tokens)
-                extra['grounding_tokens'] = grounding_tokens
+        # input bounding box is checked to be correct.
+        # mask classification target
+        if ("instances" in batched_inputs[0]) and self.task_switch['grounding']:
+            grounding_tokens = [x['grounding_query_embs'] for x in targets] # need to pad for more than one grounding token
+            grounding_tokens = nn.utils.rnn.pad_sequence(grounding_tokens)
+            extra['grounding_tokens'] = grounding_tokens
 
         features = self.backbone(images)
         outputs = self.sem_seg_head(features, extra=extra)

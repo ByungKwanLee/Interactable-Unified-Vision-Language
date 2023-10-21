@@ -313,11 +313,4 @@ def get_transformer_encoder_fpn(cfg, input_shape):
     """
     Build a pixel decoder from `cfg.MODEL.MASK_FORMER.PIXEL_DECODER_NAME`.
     """
-    model = TransformerEncoderPixelDecoder(cfg, input_shape)    
-    forward_features = getattr(model, "forward_features", None)
-    if not callable(forward_features):
-        raise ValueError(
-            "Only SEM_SEG_HEADS with forward_features method can be used as pixel decoder. "
-            f"Please implement forward_features for {name} to only return mask features."
-        )
-    return model
+    return TransformerEncoderPixelDecoder(cfg, input_shape)

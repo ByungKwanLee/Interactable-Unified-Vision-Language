@@ -1,6 +1,5 @@
 from .focal import *
 from .focal_dw import *
-from .davit import *
 from .vit import *
 from .backbone import *
 from .build import *

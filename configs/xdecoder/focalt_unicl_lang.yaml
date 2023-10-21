@@ -85,7 +85,6 @@ MODEL:
     MASK_DIM: 512
     NORM: "GN"
     IN_FEATURES: ["res2", "res3", "res4", "res5"]
-    DEFORMABLE_TRANSFORMER_ENCODER_IN_FEATURES: ["res3", "res4", "res5"]
     COMMON_STRIDE: 4
     TRANSFORMER_ENC_LAYERS: 6
   DECODER:

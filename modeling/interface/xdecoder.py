@@ -204,17 +204,17 @@ class XDecoder(nn.Module):
         for i in range(self.num_feature_levels):
             size_list.append(x[i].shape[-2:])
             pos.append(self.pe_layer(x[i], None).flatten(2))
-            src.append(self.input_proj[i](x[i]).flatten(2) + self.level_embed.weight[i][None, :, None])
+            src.append(self.input_proj[i](x[i]).flatten(2) + self.level_embed.weight[i][None, :, None]) # hierarchical-level prompting!!!
 
-            # flatten NxCxHxW to HWxNxC
+            # flatten NxCxHW to HWxNxC
             pos[-1] = pos[-1].permute(2, 0, 1)
             src[-1] = src[-1].permute(2, 0, 1)
 
         _, bs, _ = src[0].shape
 
-        # QxNxC
-        query_embed = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1)
-        output = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1)
+        # QxNxC (Q=101)
+        query_embed = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1) # positional embedding [101, B, 512]
+        output = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1) # learnable feature [101, B, 512]
 
         predictions_class = []
         predictions_mask = []
