@@ -241,8 +241,7 @@ class GeneralizedXdecoder(nn.Module):
             "sem_seg_head": sem_seg_head,
             "criterion": criterion,
             "losses": losses,
-            # "num_queries": dec_cfg['NUM_OBJECT_QUERIES'],
-            "num_queries": 257,
+            "num_queries": 256+1, #dec_cfg['NUM_OBJECT_QUERIES']
             "object_mask_threshold": dec_cfg['TEST']['OBJECT_MASK_THRESHOLD'],
             "overlap_threshold": dec_cfg['TEST']['OVERLAP_THRESHOLD'],
             "metadata": MetadataCatalog.get(cfg['DATASETS']['TRAIN'][0]),

@@ -251,7 +251,6 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
                         wb_loss_info = {key: obj.val for key, obj in self.train_loss.losses.items()}
                         wandb.log(wb_loss_info, step=self.prev_optim_steps)
 
-
                 loss_list = [obj.val for _, obj in self.train_loss.losses.items()]
                 total_loss = sum(loss_list) / len(loss_list)
                 desc = f"Epochs[{epoch:3}] optim steps[{current_optim_steps:.0f}] and "
@@ -259,10 +258,10 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
                 desc += f"Total-Loss[{total_loss:.3f}]"
                 prog_bar.set_description(desc, refresh=True)
 
-                # evaluate and save ckpt every epoch
-                self.save_checkpoint(self.train_params['num_updates'])
-                results = self._eval_on_set(self.save_folder)
-                if self.opt['rank'] == 0: print(f"Results: {results}")
-                if self.opt['rank'] == 0 and self.opt['WANDB']:
-                    wandb.log(results)
-                print(results)
+            # evaluate and save ckpt every epoch
+            self.save_checkpoint(self.train_params['num_updates'])
+            results = self._eval_on_set(self.save_folder)
+            if self.opt['rank'] == 0: print(f"Results: {results}")
+            if self.opt['rank'] == 0 and self.opt['WANDB']:
+                wandb.log(results)
+            print(results)
