@@ -154,6 +154,11 @@ class XDecoder(nn.Module):
         self.register_buffer("self_attn_mask", self_attn_mask)
 
 
+        # LBK EDIT
+        self.sam_output_mlp1 = nn.Conv2d(32, 512, kernel_size=(1, 1))
+        self.sam_output_mlp2 = nn.Linear(4096, 1, bias=True)
+
+
     @classmethod
     def from_config(cls, cfg, in_channels, lang_encoder, mask_classification, extra):
         ret = {}
@@ -167,7 +172,7 @@ class XDecoder(nn.Module):
 
         ret["hidden_dim"] = dec_cfg['HIDDEN_DIM']
         ret["dim_proj"] = cfg['MODEL']['DIM_PROJ']
-        ret["num_queries"] = dec_cfg['NUM_OBJECT_QUERIES']
+        ret["num_queries"] = 256+1 # (mask proposal queries) # dec_cfg['NUM_OBJECT_QUERIES']
         ret["contxt_len"] = cfg['MODEL']['TEXT']['CONTEXT_LENGTH']
 
         # Transformer parameters:
@@ -190,15 +195,24 @@ class XDecoder(nn.Module):
 
         return ret
 
-    def forward(self, x, mask_features, mask=None, target_queries=None, target_vlp=None, task='seg', extra={}):
+    def forward(self, upscaled_embedding_list, x, mask_features, mask=None, target_queries=None, target_vlp=None, task='seg', extra={}):
         if task == 'captioning_infer':
-            return self.forward_captioning(x, mask_features, mask=mask, target_queries=target_queries, target_vlp=target_vlp, task=task, extra=extra)
+            return self.forward_captioning(upscaled_embedding_list, x, mask_features, mask=mask, target_queries=target_queries, target_vlp=target_vlp, task=task, extra=extra)
         # x is a list of multi-scale feature
         assert len(x) == self.num_feature_levels
         src = []
         pos = []
         size_list = []
-        
+
+
+        visual_query_list = []
+        for upscaled_embedding in upscaled_embedding_list:
+            out = self.sam_output_mlp1(upscaled_embedding)
+            out = self.sam_output_mlp2(out.flatten(2)).transpose(1, 2)
+            visual_query_list.append(out)
+        visual_queries = torch.cat(visual_query_list, dim=1)
+
+
         # disable mask, it does not affect performance
         del mask
         for i in range(self.num_feature_levels):
@@ -212,9 +226,10 @@ class XDecoder(nn.Module):
 
         _, bs, _ = src[0].shape
 
-        # QxNxC (Q=101)
+        # QxNxC (Q=256+1)
         query_embed = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1) # positional embedding [101, B, 512]
         output = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1) # learnable feature [101, B, 512]
+        output[:-1, ...] += visual_queries 
 
         predictions_class = []
         predictions_mask = []
@@ -314,13 +329,21 @@ class XDecoder(nn.Module):
             }
             return out
 
-    def forward_captioning(self, x, mask_features, mask = None, target_queries = None, target_vlp = None, task='seg', extra={}):
+    def forward_captioning(self, upscaled_embedding_list, x, mask_features, mask = None, target_queries = None, target_vlp = None, task='seg', extra={}):
         # x is a list of multi-scale feature
         assert len(x) == self.num_feature_levels
         src = []
         pos = []
         size_list = []
         
+
+        visual_query_list = []
+        for upscaled_embedding in upscaled_embedding_list:
+            out = self.sam_output_mlp1(upscaled_embedding)
+            out = self.sam_output_mlp2(out.flatten(2)).transpose(1, 2)
+            visual_query_list.append(out)
+        visual_queries = torch.cat(visual_query_list, dim=1)
+
         # disable mask, it does not affect performance
         del mask
         for i in range(self.num_feature_levels):
@@ -336,10 +359,12 @@ class XDecoder(nn.Module):
 
         # QxNxC
         query_embed_ = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1)
-        query_feat = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1)        
+        query_feat = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1)   
+        query_feat[:-1, ...] += visual_queries      
         caping_lang_token = extra['start_token'].repeat(bs, 1)
         pos_embed_caping = self.pos_embed_caping.weight.unsqueeze(1).repeat(1, bs, 1)
 
+        
         # prepare token embedding for evaluation
         token_embs = self.lang_encoder.lang_encoder.token_embedding.weight
         # token_embs = (token_embs / token_embs.norm(dim=-1, keepdim=True) + 1e-7)

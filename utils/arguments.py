@@ -3,7 +3,7 @@ import json
 import argparse
 import logging
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 
 def load_config_dict_to_opt(opt, config_dict):
@@ -24,7 +24,8 @@ def load_config_dict_to_opt(opt, config_dict):
         ori_value = pointer.get(k_parts[-1])
         pointer[k_parts[-1]] = v
         if ori_value:
-            logger.warning(f"Overrided {k} from {ori_value} to {pointer[k_parts[-1]]}")
+            pass
+            # logger.warning(f"Overrided {k} from {ori_value} to {pointer[k_parts[-1]]}")
 
 
 def load_opt_from_config_files(conf_files):
@@ -61,7 +62,7 @@ def load_opt_command(args):
 
     if cmdline_args.config_overrides:
         config_overrides_string = ' '.join(cmdline_args.config_overrides)
-        logger.warning(f"Command line config overrides: {config_overrides_string}")
+        # logger.warning(f"Command line config overrides: {config_overrides_string}")
         config_dict = json.loads(config_overrides_string)
         load_config_dict_to_opt(opt, config_dict)
 

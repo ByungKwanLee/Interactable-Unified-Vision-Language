@@ -21,7 +21,7 @@ EVAL_AT_START: False
 # Logging and Debug
 WANDB: False
 LOG_EVERY: 100
-FIND_UNUSED_PARAMETERS: false
+FIND_UNUSED_PARAMETERS: True # LBK EDIT
 
 # Speed up training
 FP16: false

@@ -297,9 +297,9 @@ class GeneralizedXdecoder(nn.Module):
                         Each dict contains keys "id", "category_id", "isthing".
         """
         # visualization
-        a = batched_inputs['coco'][0]['image'].permute(1,2,0).flip(2).cpu().numpy()
-        b = batched_inputs['coco'][0]['instances']._fields['gt_masks'][0].cpu().numpy()
-        c = batched_inputs['vlp'][1]['image'].permute(1,2,0).flip(2).cpu().numpy()
+        # a = batched_inputs['coco'][0]['image'].permute(1,2,0).flip(2).cpu().numpy()
+        # b = batched_inputs['coco'][0]['instances']._fields['gt_masks'][0].cpu().numpy()
+        # c = batched_inputs['vlp'][1]['image'].permute(1,2,0).flip(2).cpu().numpy()
         
         if self.training:
             losses = {}
@@ -332,19 +332,6 @@ class GeneralizedXdecoder(nn.Module):
         images = torch.cat([x["image"].flip(0).to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
         images = (images - self.pixel_mean) / self.pixel_std
 
-        # Modification to SAM input
-        sam_input = [
-            {
-                'image': x["image"].flip(0).to(self.device),
-                'point_coords': input_point,
-                'point_labels': input_label,
-                'original_size': x["image"].shape[1:]
-            } for x in batched_inputs
-        ] 
-        # LBK SAM propagation
-        features = self.sam.individual_forward(sam_input, multimask_output=True, is_low_resol=True)
-
-
         self.sem_seg_head.predictor.lang_encoder.get_text_embeddings(self.train_class_names, is_eval=False)
 
         extra = {}
@@ -356,9 +343,19 @@ class GeneralizedXdecoder(nn.Module):
             grounding_tokens = [x['grounding_query_embs'] for x in targets] # need to pad for more than one grounding token
             grounding_tokens = nn.utils.rnn.pad_sequence(grounding_tokens)
             extra['grounding_tokens'] = grounding_tokens
-
-        features = self.backbone(images)
-        outputs = self.sem_seg_head(features, extra=extra)
+        
+        # LBK SAM propagation
+        sam_input = [
+            {
+                'image': x["image"].flip(0).to(self.device),
+                'point_coords': input_point,
+                'point_labels': input_label,
+                'original_size': x["image"].shape[1:]
+            } for x in batched_inputs
+        ] 
+        x_list, _, upscaled_embedding_list, src_list\
+        = self.sam(sam_input, multimask_output=True)
+        outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, extra=extra)
 
         _outputs = {}
         for key, value in outputs.items():
@@ -401,17 +398,27 @@ class GeneralizedXdecoder(nn.Module):
         return losses
 
     def forward_vlp(self, batched_inputs):
-        images = [x["image"].to(self.device) for x in batched_inputs]
-        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, self.size_divisibility)
-        targets_vlp = self.prepare_vlp_targets(batched_inputs, images.tensor.device)
+        images = torch.cat([x["image"].flip(0).to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
+        images = (images - self.pixel_mean) / self.pixel_std
+                
+        targets_vlp = self.prepare_vlp_targets(batched_inputs, images.device)
 
         extra = {"token_embedding": self.sem_seg_head.predictor.lang_encoder.lang_encoder.token_embedding,
                  "lang_encoder": self.sem_seg_head.predictor.lang_encoder,
                  "training": self.training}
 
-        features = self.backbone(images.tensor)
-        outputs = self.sem_seg_head(features, target_queries=None, target_vlp=targets_vlp, task='vlp', extra=extra)
+       # LBK SAM propagation
+        sam_input = [
+            {
+                'image': x["image"].flip(0).to(self.device),
+                'point_coords': input_point,
+                'point_labels': input_label,
+                'original_size': x["image"].shape[1:]
+            } for x in batched_inputs
+        ] 
+        x_list, _, upscaled_embedding_list, src_list\
+        = self.sam(sam_input, multimask_output=True)
+        outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, target_queries=None, target_vlp=targets_vlp, task='vlp', extra=extra)
 
         for key, value in outputs.items():
             if key == 'pred_captionings':
@@ -436,7 +443,7 @@ class GeneralizedXdecoder(nn.Module):
 
         if self.task_switch['retrieval'] and self.retrieval_emsemble:
             # compute backbone vlp.
-            v_emb = features['res5']
+            v_emb = x_list['res5']
             bs,nc,_,_ = v_emb.shape
             v_emb = v_emb.reshape(bs,nc,-1)
             v_emb = F.adaptive_avg_pool1d(v_emb, 1).reshape(bs,nc) @ self.backbone_proj
@@ -446,15 +453,23 @@ class GeneralizedXdecoder(nn.Module):
         return losses
 
     def evaluate(self, batched_inputs):
-        images = [x["image"].to(self.device) for x in batched_inputs]
-        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        
-        images = ImageList.from_tensors(images, self.size_divisibility)
-        img_bs = images.tensor.shape[0]
+        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)) for x in batched_inputs], dim=0)
+        images = (images - self.pixel_mean) / self.pixel_std
 
         targets = targets_grounding = queries_grounding = None
-        features = self.backbone(images.tensor)
-        outputs = self.sem_seg_head(features, target_queries=queries_grounding)
+        
+        # LBK SAM propagation
+        sam_input = [
+            {
+                'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)).squeeze(0),
+                'point_coords': input_point,
+                'point_labels': input_label,
+                'original_size': x["image"].shape[1:]
+            } for x in batched_inputs
+        ] 
+        x_list, _, upscaled_embedding_list, src_list\
+        = self.sam(sam_input, multimask_output=True)
+        outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, target_queries=queries_grounding)
 
         mask_cls_results = outputs["pred_logits"]
         mask_pred_results = outputs["pred_masks"]
@@ -464,7 +479,7 @@ class GeneralizedXdecoder(nn.Module):
         # upsample masks
         mask_pred_results = F.interpolate(
             mask_pred_results,
-            size=(images.tensor.shape[-2], images.tensor.shape[-1]),
+            size=images.shape[2:],
             mode="bicubic",
             align_corners=False,
             antialias=True
@@ -475,16 +490,16 @@ class GeneralizedXdecoder(nn.Module):
         del outputs
 
         processed_results = []
-        for mask_cls_result, mask_pred_result, box_pred_result, caption_pred_result, input_per_image, image_size in zip(
-            mask_cls_results, mask_pred_results, box_pred_results, caption_pred_results, batched_inputs, images.image_sizes
+        for mask_cls_result, mask_pred_result, box_pred_result, caption_pred_result, input_per_image in zip(
+            mask_cls_results, mask_pred_results, box_pred_results, caption_pred_results, batched_inputs
         ):
-            height = input_per_image.get("height", image_size[0])
-            width = input_per_image.get("width", image_size[1])
+            height = input_per_image.get("height", images.shape[2])
+            width = input_per_image.get("width", images.shape[3])
             processed_results.append({})
 
             if self.sem_seg_postprocess_before_inference:
                 mask_pred_result = retry_if_cuda_oom(sem_seg_postprocess)(
-                    mask_pred_result, image_size, height, width
+                    mask_pred_result, images.shape[2:], height, width
                 )
                 mask_cls_result = mask_cls_result.to(mask_pred_result)
 
@@ -492,7 +507,7 @@ class GeneralizedXdecoder(nn.Module):
             if self.semantic_on:
                 r = retry_if_cuda_oom(self.semantic_inference)(mask_cls_result, mask_pred_result, keep_sem_bgd)
                 if not self.sem_seg_postprocess_before_inference:
-                    r = retry_if_cuda_oom(sem_seg_postprocess)(r, image_size, height, width)
+                    r = retry_if_cuda_oom(sem_seg_postprocess)(r, images.shape[2:], height, width)
                 processed_results[-1]["sem_seg"] = r
 
             # panoptic segmentation inference
@@ -503,7 +518,7 @@ class GeneralizedXdecoder(nn.Module):
             # instance segmentation inference
             if self.instance_on:
                 if self.task_switch['bbox']:
-                    box_pred_result = bbox_postprocess(box_pred_result, input_size, image_size, height, width)
+                    box_pred_result = bbox_postprocess(box_pred_result, input_size, images.shape[2:], height, width)
                 instance_r = retry_if_cuda_oom(self.instance_inference)(mask_cls_result, mask_pred_result, box_pred_result)
                 processed_results[-1]["instances"] = instance_r
             if self.task_switch['caption']:
@@ -513,14 +528,23 @@ class GeneralizedXdecoder(nn.Module):
         return processed_results
 
     def evaluate_retrieval(self, batched_inputs):
-        images = [x["image"].to(self.device) for x in batched_inputs]
-        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, self.size_divisibility)
-        img_bs = images.tensor.shape[0]
-        
+        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)) for x in batched_inputs], dim=0)
+        images = (images - self.pixel_mean) / self.pixel_std
+
         targets = targets_grounding = queries_grounding = None
-        features = self.backbone(images.tensor)
-        outputs = self.sem_seg_head(features, target_queries=queries_grounding)
+        
+        # LBK SAM propagation
+        sam_input = [
+            {
+                'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)).squeeze(0),
+                'point_coords': input_point,
+                'point_labels': input_label,
+                'original_size': x["image"].shape[1:]
+            } for x in batched_inputs
+        ] 
+        x_list, _, upscaled_embedding_list, src_list\
+        = self.sam(sam_input, multimask_output=True)
+        outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, target_queries=queries_grounding)
         v_emb_it = outputs['pred_captions'][:,-1]
 
         # compute backbone score
@@ -558,22 +582,36 @@ class GeneralizedXdecoder(nn.Module):
         return processed_results
 
     def evaluate_captioning(self, batched_inputs):
-        images = [x["image"].to(self.device) for x in batched_inputs]
-        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, self.size_divisibility)
-        img_bs = images.tensor.shape[0]
+        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)) for x in batched_inputs], dim=0)
+        images = (images - self.pixel_mean) / self.pixel_std
+        
+        # LBK SAM propagation
+        sam_input = [
+            {
+                'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)).squeeze(0),
+                'point_coords': input_point,
+                'point_labels': input_label,
+                'original_size': x["image"].shape[1:]
+            } for x in batched_inputs
+        ] 
 
         if not hasattr(self, 'start_token'):
             self.start_token = torch.tensor([[49406]*77], device=self.device)
         
         targets = targets_grounding = queries_grounding = None
-        features = self.backbone(images.tensor)
 
         captioning_mask = None
         if 'captioning_mask' in batched_inputs[-1]:
             captioning_mask = torch.cat([x['captioning_mask'] for x in batched_inputs])
 
-        outputs = self.sem_seg_head(features, target_queries=queries_grounding, task='captioning_infer', extra={'start_token': self.start_token, 'captioning_mask': captioning_mask})
+
+        # LBK SAM propagation
+        x_list, _, upscaled_embedding_list, src_list\
+        = self.sam(sam_input, multimask_output=True)
+        outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, 
+                                    target_queries=queries_grounding, task='captioning_infer', extra={'start_token': self.start_token, 'captioning_mask': captioning_mask})
+
+
 
         processed_results = []
         for idx, batch_data in enumerate(batched_inputs):
@@ -585,15 +623,26 @@ class GeneralizedXdecoder(nn.Module):
         return processed_results
 
     def evaluate_classification(self, batched_inputs):
-        images = [x["image"].to(self.device) for x in batched_inputs]
-        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, self.size_divisibility)
-        img_bs = images.tensor.shape[0]
+        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)) for x in batched_inputs], dim=0)
+        images = (images - self.pixel_mean) / self.pixel_std
+        
+        # LBK SAM propagation
+        sam_input = [
+            {
+                'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)).squeeze(0),
+                'point_coords': input_point,
+                'point_labels': input_label,
+                'original_size': x["image"].shape[1:]
+            } for x in batched_inputs
+        ] 
         
         targets = targets_grounding = queries_grounding = None
-        features = self.backbone(images.tensor)
-        outputs = self.sem_seg_head(features, target_queries=queries_grounding)
 
+        # LBK SAM propagation
+        x_list, _, upscaled_embedding_list, src_List\
+        = self.sam(sam_input, multimask_output=True)
+        outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_List, 
+                                    target_queries=queries_grounding)
         processed_results = []
         for idx, batch_data in enumerate(batched_inputs):
             processed_results.append({})
@@ -601,14 +650,26 @@ class GeneralizedXdecoder(nn.Module):
         return processed_results
 
     def evaluate_grounding_baseline(self, batched_inputs, mode):
-        images = [x["image"].to(self.device) for x in batched_inputs]
-        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, self.size_divisibility)
-        img_bs = images.tensor.shape[0]
+        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)) for x in batched_inputs], dim=0)
+        images = (images - self.pixel_mean) / self.pixel_std
+        
+        # LBK SAM propagation
+        sam_input = [
+            {
+                'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)).squeeze(0),
+                'point_coords': input_point,
+                'point_labels': input_label,
+                'original_size': x["image"].shape[1:]
+            } for x in batched_inputs
+        ] 
         
         targets = targets_grounding = queries_grounding = None
-        features = self.backbone(images.tensor)
-        outputs = self.sem_seg_head(features, target_queries=queries_grounding)
+
+        # LBK SAM propagation
+        x_list, _, upscaled_embedding_list, src_List\
+        = self.sam(sam_input, multimask_output=True)
+        outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_List,
+                                    target_queries=queries_grounding)
 
         mask_pred_results = outputs["pred_masks"]
         caption_pred_results = outputs["pred_captions"] if self.task_switch['caption'] else [None for i in range(len(mask_pred_results))]
@@ -616,22 +677,22 @@ class GeneralizedXdecoder(nn.Module):
         # upsample masks
         mask_pred_results = F.interpolate(
             mask_pred_results,
-            size=(images.tensor.shape[-2], images.tensor.shape[-1]),
+            size=images.shape[2:],
             mode="bicubic",
             align_corners=False,
             antialias=True
         )
 
         processed_results = []
-        for mask_pred_result, caption_pred_result, input_per_image, image_size in zip(
-            mask_pred_results, caption_pred_results, batched_inputs, images.image_sizes
+        for mask_pred_result, caption_pred_result, input_per_image in zip(
+            mask_pred_results, caption_pred_results, batched_inputs
         ):
-            height = input_per_image.get("height", image_size[0])
-            width = input_per_image.get("width", image_size[1])
+            height = input_per_image.get("height", images.shape[2])
+            width = input_per_image.get("width", images.shape[3])
             processed_results.append({})
 
             mask_pred_result = retry_if_cuda_oom(sem_seg_postprocess)(
-                mask_pred_result, image_size, height, width
+                mask_pred_result, images.shape[2:], height, width
             )[:-1]
 
             texts_all = input_per_image['groundings']['texts']
@@ -652,41 +713,22 @@ class GeneralizedXdecoder(nn.Module):
         return processed_results
 
     def evaluate_grounding(self, batched_inputs, mode):
-        images = [x["image"].to(self.device) for x in batched_inputs]
-        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, self.size_divisibility)
+        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)) for x in batched_inputs], dim=0)
+        images = (images - self.pixel_mean) / self.pixel_std
+        
+        # LBK SAM propagation
+        sam_input = [
+            {
+                'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)).squeeze(0),
+                'point_coords': input_point,
+                'point_labels': input_label,
+                'original_size': x["image"].shape[1:]
+            } for x in batched_inputs
+        ] 
+        x_list, _, upscaled_embedding_list, src_List\
+            = self.sam(sam_input, multimask_output=True)
 
         extra = {}
-        # mask_pred_results = []
-        # for idx, batch_per_image in enumerate(batched_inputs):
-        #     grd_texts = batch_per_image['groundings']['texts']
-        #     grd_masks = []
-        #     for anno_text in grd_texts:
-        #         gtext = self.sem_seg_head.predictor.lang_encoder.get_text_token_embeddings([anno_text[0]], name='grounding', token=False, norm=False)
-        #         token_emb = gtext['token_emb']
-        #         tokens = gtext['tokens']
-            
-        #         grd_emb = token_emb[0][tokens['attention_mask'].bool()[0]]
-        #         extra['grounding_tokens'] = grd_emb[:,None]
-
-        #         assert len(images.tensor) == 1, "grounding evaluation only support single batch size now"
-        #         features = self.backbone(images.tensor)
-        #         outputs = self.sem_seg_head(features, extra=extra, task='grounding_eval')
-                
-        #         pred_gmasks = outputs['pred_masks'][idx,self.num_queries:2*self.num_queries-1]
-        #         v_emb = outputs['pred_captions'][idx,self.num_queries:2*self.num_queries-1]
-        #         t_emb = grd_emb[-1:]
-
-        #         t_emb = t_emb / (t_emb.norm(dim=-1, keepdim=True) + 1e-7)
-        #         v_emb = v_emb / (v_emb.norm(dim=-1, keepdim=True) + 1e-7)            
-
-        #         temperature = self.sem_seg_head.predictor.lang_encoder.logit_scale
-        #         out_prob = vl_similarity(v_emb, t_emb, temperature=temperature)
-                
-        #         matched_id = out_prob.max(0)[1]
-        #         grd_masks += [pred_gmasks[matched_id,:,:]]
-        #     mask_pred_results += [torch.cat(grd_masks)]
-
         # comment for multi object inference.
         mask_pred_results = []
         for idx, batch_per_image in enumerate(batched_inputs):
@@ -699,8 +741,9 @@ class GeneralizedXdecoder(nn.Module):
             query_emb = token_emb[tokens['attention_mask'].bool()]
             extra['grounding_tokens'] = query_emb[:,None]
 
-            features = self.backbone(images.tensor)
-            outputs = self.sem_seg_head(features, extra=extra, task='grounding_eval')
+
+            outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_List,
+                                       extra=extra, task='grounding_eval')
 
             pred_gmasks = outputs['pred_masks'][idx,self.num_queries:2*self.num_queries-1]
             v_emb = outputs['pred_captions'][idx,self.num_queries:2*self.num_queries-1]
@@ -719,22 +762,22 @@ class GeneralizedXdecoder(nn.Module):
             # upsample masks
             mask_pred_results[i] = F.interpolate(
                 mask_pred_results[i][None,],
-                size=(images.tensor.shape[-2], images.tensor.shape[-1]),
+                size=images.shape[2:],
                 mode="bicubic",
                 align_corners=False,
                 antialias=True
             )[0]
 
         processed_results = []
-        for mask_pred_result, input_per_image, image_size in zip(
-            mask_pred_results, batched_inputs, images.image_sizes
+        for mask_pred_result, input_per_image in zip(
+            mask_pred_results, batched_inputs
         ):
-            height = input_per_image.get("height", image_size[0])
-            width = input_per_image.get("width", image_size[1])
+            height = input_per_image.get("height", images.shape[2])
+            width = input_per_image.get("width", images.shape[3])
             processed_results.append({})
 
             mask_pred_result = retry_if_cuda_oom(sem_seg_postprocess)(
-                mask_pred_result, image_size, height, width
+                mask_pred_result, images.shape[2:], height, width
             )
             processed_results[-1]['grounding_mask'] = mask_pred_result
 
@@ -934,8 +977,10 @@ class GeneralizedXdecoder(nn.Module):
             thing_dataset_id_to_contiguous_id = self.metadata.thing_dataset_id_to_contiguous_id if hasattr(self.metadata, 'thing_dataset_id_to_contiguous_id') else {}
             keep = torch.zeros_like(scores_per_image).bool()
             for i, lab in enumerate(labels_per_image):
-                keep[i] = lab in thing_dataset_id_to_contiguous_id.values()
-
+                try:
+                    keep[i] = lab in thing_dataset_id_to_contiguous_id.values()
+                except:
+                    print('ERRORRERRORRERRORRERRORRERRORRERRORR')
             scores_per_image = scores_per_image[keep]
             labels_per_image = labels_per_image[keep]
             mask_pred = mask_pred[keep]

@@ -95,14 +95,10 @@ class XdecoderHead(nn.Module):
             ),
         }
 
-    def forward(self, features, mask=None, target_queries=None, target_vlp=None, task='seg', extra={}):
-        return self.layers(features, mask, target_queries, target_vlp, task, extra)
-
-    def layers(self, features, mask=None, target_queries=None, target_vlp=None, task='seg', extra={}):
-        mask_features, _, multi_scale_features = self.pixel_decoder.forward_features(features)
-        predictions = self.predictor(multi_scale_features, mask_features, mask, target_queries, target_vlp, task, extra)
+    def forward(self, features, upscaled_embedding_list, src_list, mask=None, target_queries=None, target_vlp=None, task='seg', extra={}):
+        mask_features, multi_scale_features = self.pixel_decoder(features, src_list)
+        predictions = self.predictor(upscaled_embedding_list, multi_scale_features, mask_features, mask, target_queries, target_vlp, task, extra)
         return predictions
-
 
 @register_body
 def get_xdecoder_head(cfg, input_shape, lang_encoder, extra):

@@ -91,7 +91,7 @@ class MaskDecoder(nn.Module):
           torch.Tensor: batched predicted masks
           torch.Tensor: batched predictions of mask quality
         """
-        masks, iou_pred = self.predict_masks(
+        masks, iou_pred, hyper_in, upscaled_embedding, src = self.predict_masks(
             image_embeddings=image_embeddings,
             image_pe=image_pe,
             sparse_prompt_embeddings=sparse_prompt_embeddings,
@@ -107,7 +107,7 @@ class MaskDecoder(nn.Module):
         iou_pred = iou_pred[:, mask_slice]
 
         # Prepare output
-        return masks, iou_pred
+        return masks, iou_pred, hyper_in, upscaled_embedding, src
 
     # by LBK EDIT
     @staticmethod
@@ -169,7 +169,11 @@ class MaskDecoder(nn.Module):
         # Generate mask quality predictions
         iou_pred = self.iou_prediction_head(iou_token_out)
 
-        return masks, iou_pred
+        # original code 
+        # return masks, iou_pred
+    
+        # LBK EDIT
+        return masks, iou_pred, hyper_in, upscaled_embedding, src
 
 
 # Lightly adapted from

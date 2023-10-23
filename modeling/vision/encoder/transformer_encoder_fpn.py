@@ -42,6 +42,7 @@ class BasePixelDecoder(nn.Module):
         input_shape = sorted(input_shape.items(), key=lambda x: x[1].stride)
         self.in_features = [k for k, v in input_shape]  # starting from "res2" to "res5"
         feature_channels = [v.channels for k, v in input_shape]
+        feature_channels = [768, 768, 768, 768] # LBK EDIT
 
         lateral_convs = []
         output_convs = []
@@ -120,7 +121,7 @@ class BasePixelDecoder(nn.Module):
         ret["norm"] = enc_cfg['NORM']
         return ret
 
-    def forward_features(self, features):
+    def forward(self, features):
         multi_scale_features = []
         num_cur_levels = 0
         # Reverse feature maps into top-down order (from low to high resolution)
@@ -140,12 +141,7 @@ class BasePixelDecoder(nn.Module):
                 num_cur_levels += 1
         
         mask_features = self.mask_features(y) if self.mask_on else None
-        return mask_features, None, multi_scale_features
-
-    def forward(self, features, targets=None):
-        logger = logging.getLogger(__name__)
-        logger.warning("Calling forward() may cause unpredicted behavior of PixelDecoder module.")
-        return self.forward_features(features)
+        return mask_features, multi_scale_features
 
 
 class TransformerEncoderOnly(nn.Module):
@@ -223,22 +219,10 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
 
         input_shape = sorted(input_shape.items(), key=lambda x: x[1].stride)
         self.in_features = [k for k, v in input_shape]  # starting from "res2" to "res5"
-        feature_strides = [v.stride for k, v in input_shape]
-        feature_channels = [v.channels for k, v in input_shape]
 
-        in_channels = feature_channels[len(self.in_features) - 1]
-        self.input_proj = Conv2d(in_channels, conv_dim, kernel_size=1)
-        weight_init.c2_xavier_fill(self.input_proj)
-        self.transformer = TransformerEncoderOnly(
-            d_model=conv_dim,
-            dropout=transformer_dropout,
-            nhead=transformer_nheads,
-            dim_feedforward=transformer_dim_feedforward,
-            num_encoder_layers=transformer_enc_layers,
-            normalize_before=transformer_pre_norm,
-        )
-        N_steps = conv_dim // 2
-        self.pe_layer = PositionEmbeddingSine(N_steps, normalize=True)
+        self.mask_proj = Conv2d(256, 1, kernel_size=1)
+        self.input_proj = Conv2d(256, 512, kernel_size=1)
+
 
         # update layer
         use_bias = norm == ""
@@ -273,40 +257,32 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
         ret['mask_on'] = cfg['MODEL']['DECODER']['MASK']
         return ret
 
-    def forward_features(self, features):
+    def forward(self, features, src_list):
         multi_scale_features = []
         num_cur_levels = 0
         
+        src_refined_list = []
+        for src in src_list: src_refined_list.append(self.mask_proj(src.transpose(0, 1)).transpose(0, 1))
+        refined_src = torch.cat(src_refined_list, dim=0)
+
         # Reverse feature maps into top-down order (from low to high resolution)
         for idx, f in enumerate(self.in_features[::-1]):
             x = features[f]
             lateral_conv = self.lateral_convs[idx]
             output_conv = self.output_convs[idx]
             if lateral_conv is None:
-                transformer = self.input_proj(x)
-                pos = self.pe_layer(x)
-                transformer = self.transformer(transformer, None, pos)
-                y = output_conv(transformer)
-                # save intermediate feature as input to Transformer decoder
-                transformer_encoder_features = transformer
+                y = output_conv(self.input_proj(refined_src))
             else:
                 cur_fpn = lateral_conv(x)
                 # Following FPN implementation, we use nearest upsampling here
-                y = cur_fpn + F.interpolate(y, size=cur_fpn.shape[-2:], mode="nearest")
+                y = cur_fpn + y
                 y = output_conv(y)
             if num_cur_levels < self.maskformer_num_feature_levels:
                 multi_scale_features.append(y)
                 num_cur_levels += 1
 
         mask_features = self.mask_features(y) if self.mask_on else None
-        return mask_features, transformer_encoder_features, multi_scale_features
-
-    def forward(self, features, targets=None):
-        logger = logging.getLogger(__name__)
-        logger.warning("Calling forward() may cause unpredicted behavior of PixelDecoder module.")
-        return self.forward_features(features)
-
-
+        return mask_features, multi_scale_features
 
 @register_encoder
 def get_transformer_encoder_fpn(cfg, input_shape):
