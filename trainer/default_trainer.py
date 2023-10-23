@@ -245,6 +245,13 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
                 for module_name in self.model_names:
                     last_lr[module_name] = self.lr_schedulers[module_name].get_last_lr()[0]
                 
+                if self.opt['rank'] == 0:
+                    if self.opt['WANDB']:
+                        # log for wandb
+                        wb_loss_info = {key: obj.val for key, obj in self.train_loss.losses.items()}
+                        wandb.log(wb_loss_info, step=self.prev_optim_steps)
+
+
                 loss_list = [obj.val for _, obj in self.train_loss.losses.items()]
                 total_loss = sum(loss_list) / len(loss_list)
                 desc = f"Epochs[{epoch:3}] optim steps[{current_optim_steps:.0f}] and "
