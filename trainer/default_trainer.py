@@ -259,10 +259,10 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
                 desc += f"Total-Loss[{total_loss:.3f}]"
                 prog_bar.set_description(desc, refresh=True)
 
-            # evaluate and save ckpt every epoch
-            self.save_checkpoint(self.train_params['num_updates'])
-            results = self._eval_on_set(self.save_folder)
-            if self.opt['rank'] == 0: print(f"Results: {results}")
-            if self.opt['rank'] == 0 and self.opt['WANDB']:
-                wandb.log(results)
-            print(results)
+                # evaluate and save ckpt every epoch
+                self.save_checkpoint(self.train_params['num_updates'])
+                results = self._eval_on_set(self.save_folder)
+                if self.opt['rank'] == 0: print(f"Results: {results}")
+                if self.opt['rank'] == 0 and self.opt['WANDB']:
+                    wandb.log(results)
+                print(results)

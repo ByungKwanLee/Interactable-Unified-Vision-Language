@@ -241,7 +241,8 @@ class GeneralizedXdecoder(nn.Module):
             "sem_seg_head": sem_seg_head,
             "criterion": criterion,
             "losses": losses,
-            "num_queries": dec_cfg['NUM_OBJECT_QUERIES'],
+            # "num_queries": dec_cfg['NUM_OBJECT_QUERIES'],
+            "num_queries": 257,
             "object_mask_threshold": dec_cfg['TEST']['OBJECT_MASK_THRESHOLD'],
             "overlap_threshold": dec_cfg['TEST']['OVERLAP_THRESHOLD'],
             "metadata": MetadataCatalog.get(cfg['DATASETS']['TRAIN'][0]),
@@ -977,10 +978,7 @@ class GeneralizedXdecoder(nn.Module):
             thing_dataset_id_to_contiguous_id = self.metadata.thing_dataset_id_to_contiguous_id if hasattr(self.metadata, 'thing_dataset_id_to_contiguous_id') else {}
             keep = torch.zeros_like(scores_per_image).bool()
             for i, lab in enumerate(labels_per_image):
-                try:
-                    keep[i] = lab in thing_dataset_id_to_contiguous_id.values()
-                except:
-                    print('ERRORRERRORRERRORRERRORRERRORRERRORR')
+                keep[i] = lab in thing_dataset_id_to_contiguous_id.values()
             scores_per_image = scores_per_image[keep]
             labels_per_image = labels_per_image[keep]
             mask_pred = mask_pred[keep]
