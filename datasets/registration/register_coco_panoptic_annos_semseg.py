@@ -177,5 +177,5 @@ def register_all_coco_panoptic_annos_sem_seg(root):
         )
 
 
-_root = os.getenv("DATASET", "/mnt/hard1/lbk-cvpr/dataset")
+_root = os.getenv("DATASET", "datasets")
 register_all_coco_panoptic_annos_sem_seg(_root)

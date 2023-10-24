@@ -78,5 +78,5 @@ def register_all_sbd(root):
         register_pascalvoc_context(name, os.path.join(root, dirname), mode, split)
         MetadataCatalog.get("{}_{}".format(name, mode)).evaluator_type = "interactive"
 
-_root = os.getenv("DATASET", "/mnt/hard1/lbk-cvpr/dataset")
+_root = os.getenv("DATASET", "datasets")
 register_all_sbd(_root)

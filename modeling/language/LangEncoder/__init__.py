@@ -3,6 +3,7 @@ from transformers import AutoTokenizer
 
 from .transformer import *
 from .build import *
+from modeling.language.LangEncoder import conversation as conversation_lib
 
 
 def build_lang_encoder(config_encoder, tokenizer, verbose, **kwargs):
@@ -28,6 +29,13 @@ def build_tokenizer(config_encoder):
         )
         tokenizer = CLIPTokenizerFast.from_pretrained(pretrained_tokenizer, from_slow=True)
     else:
-        tokenizer = AutoTokenizer.from_pretrained(config_encoder['TOKENIZER'])
-
+        pretrained_tokenizer = config_encoder.get(
+            'PRETRAINED_TOKENIZER', 'lmsys/vicuna-7b-v1.5'
+        )
+        tokenizer = AutoTokenizer.from_pretrained(pretrained_tokenizer, model_max_length=256,
+            padding_side="right", use_fast=False,)
+        tokenizer.pad_token = tokenizer.unk_token
+        
+        conversation_lib.default_conversation = conversation_lib.conv_templates['v1']
+        
     return tokenizer

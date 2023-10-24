@@ -13,3 +13,4 @@ from .bdd_semseg_dataset_mapper import BDDSemDatasetMapper
 from .scannet_pano_dataset_mapper import ScanNetPanoDatasetMapper
 from .refcoco_dataset_mapper import RefCOCODatasetMapper
 from .pascalvoc_dataset_mapper_ix import PascalVOCSegDatasetMapperIX
+from. instp_dataset_mapper import InstPreDatasetMapper

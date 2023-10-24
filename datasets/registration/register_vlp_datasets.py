@@ -128,7 +128,7 @@ def register_all_pretrain(root):
         )
 
 
-# _root = os.getenv("VLDATASET", "/mnt/hard1/lbk-cvpr/dataset") #may need a different root name?
-_root = os.getenv("DATASET2", "/mnt/hard1/lbk-cvpr/dataset") #may need a different root name?
-_coco_root = os.getenv("DATASET", "/mnt/hard1/lbk-cvpr/dataset") #may need a different root name?
+# _root = os.getenv("VLDATASET", "datasets") #may need a different root name?
+_root = os.getenv("DATASET2", "datasets") #may need a different root name?
+_coco_root = os.getenv("DATASET", "datasets") #may need a different root name?
 register_all_pretrain(_root)

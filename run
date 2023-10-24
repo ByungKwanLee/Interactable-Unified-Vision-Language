@@ -21,12 +21,13 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 mpirun -n 8 python lbk_entry.py train \
             COCO.TEST.BATCH_SIZE_TOTAL 8 \
             COCO.TRAIN.BATCH_SIZE_TOTAL 16 \
             COCO.TRAIN.BATCH_SIZE_PER_GPU 2 \
-            VLP.TEST.BATCH_SIZE_TOTAL 8 \
-            VLP.TRAIN.BATCH_SIZE_TOTAL 16 \
-            VLP.TRAIN.BATCH_SIZE_PER_GPU 2 \
-            VLP.DATALOADER.NUM_WORKERS 32 \
+            INSTP.TEST.BATCH_SIZE_TOTAL 8 \
+            INSTP.TRAIN.BATCH_SIZE_TOTAL 16 \
+            INSTP.TRAIN.BATCH_SIZE_PER_GPU 2 \
+            INSTP.DATALOADER.NUM_WORKERS 32 \
             ADE20K.TEST.BATCH_SIZE_TOTAL 8 \
             REF.TEST.BATCH_SIZE_TOTAL 8 \
             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
             WEIGHT True \
             RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
+

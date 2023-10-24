@@ -109,5 +109,5 @@ def register_all_refcoco(root):
         )
 
 
-_root = os.getenv("DATASET", "/mnt/hard1/lbk-cvpr/dataset")
+_root = os.getenv("DATASET", "datasets")
 register_all_refcoco(_root)

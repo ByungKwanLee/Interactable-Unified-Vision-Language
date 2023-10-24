@@ -386,5 +386,5 @@ def register_all_ade20k_panoptic(root):
         )
 
 
-_root = os.getenv("DETECTRON2_DATASETS", "/mnt/hard1/lbk-cvpr/dataset")
+_root = os.getenv("DETECTRON2_DATASETS", "datasets")
 register_all_ade20k_panoptic(_root)

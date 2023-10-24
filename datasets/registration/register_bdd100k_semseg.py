@@ -69,5 +69,5 @@ def register_all_sunrgbd_seg(root):
         MetadataCatalog.get(name).evaluator_type = "sem_seg"
 
 
-_root = os.getenv("DATASET", "/mnt/hard1/lbk-cvpr/dataset")
+_root = os.getenv("DATASET", "datasets")
 register_all_sunrgbd_seg(_root)

@@ -59,5 +59,5 @@ def register_all_imagenet(root):
         MetadataCatalog.get(name).evaluator_type = "classification"
 
 
-_root = os.getenv("DATASET", "/mnt/hard1/lbk-cvpr/dataset")
+_root = os.getenv("DATASET", "datasets")
 register_all_imagenet(_root)

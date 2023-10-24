@@ -12,22 +12,21 @@ import pyarrow as pa
 
 _PREDEFINED_SPLITS_PRETRAIN = {
     # filt coco2017 val
-    # "inst_train": ["instruction_instruct150k.arrow"]
-    "instruction_train": ["instruction_coco2017.arrow", "instruction_gqa.arrow", "instruction_ocr_vqa.arrow", "instruction_textvqa.arrow", "instruction_vg.arrow"],
-    "instruction_val": ["coco_caption_karpathy_test.arrow"],
-    "instruction_captioning_val": ["coco_caption_karpathy_test.arrow"],
-    "instruction_val2017": ["coco_caption_karpathy_val2017.arrow"],
-    "instruction_captioning_val2017": ["coco_caption_karpathy_val2017.arrow"],
+    "instp_train": ["instruction_pretrain_558k.arrow"],
+    "instp_val": ["coco_caption_karpathy_test.arrow"],
+    "instp_captioning_val": ["coco_caption_karpathy_test.arrow"],
+    "instp_val2017": ["coco_caption_karpathy_val2017.arrow"],
+    "instp_captioning_val2017": ["coco_caption_karpathy_val2017.arrow"],
     # the following is for local testing
 }
 
 def get_metadata(name):
-    if name in ['instruction_captioning_val', 'instruction_captioning_val2017']:
+    if name in ['instp_captioning_val', 'instp_captioning_val2017']:
         return {'gt_json': os.path.join(_coco_root, 'coco/annotations/captions_val2014.json')}
     else:
         return {}
 
-evaluator_mapper = {'instruction_val': 'retrieval', 'instruction_train': 'retrieval', 'instruction_captioning_val': 'captioning', 'instruction_val2017': 'retrieval', 'instruction_captioning_val2017': 'captioning'}
+evaluator_mapper = {'instp_val': 'retrieval', 'instp_train': 'retrieval', 'instp_captioning_val': 'captioning', 'instp_val2017': 'retrieval', 'instp_captioning_val2017': 'captioning'}
 def load_pretrain_arrows(root, arrow_paths):
     """
     Args:
@@ -57,7 +56,7 @@ def load_pretrain_data(arrow_root, meta, name, pretrain_arrows):
             captions = arr['caption'][i].as_py()
             image_id = arr['image_id'][i].as_py()
             if not isinstance(image_id, int):
-                image_id = int(image_id.split('.')[0])
+                image_id = int(image_id.split('/')[-1].split('.')[0])
 
             if 'val' in name:
                 ret.append( {
@@ -67,13 +66,12 @@ def load_pretrain_data(arrow_root, meta, name, pretrain_arrows):
                     "cur_id": cur_id,
                 })
             else:
-                for caption in captions:
-                    ret.append( {
-                        "image_id": image_id,
-                        "captions": [caption],
-                        "arr_id": arr_id,
-                        "cur_id": cur_id,
-                    })
+                ret.append( {
+                    "image_id": image_id,
+                    "captions": [captions],
+                    "arr_id": arr_id,
+                    "cur_id": cur_id,
+                })
             cur_id += 1
             image_id += 1
 

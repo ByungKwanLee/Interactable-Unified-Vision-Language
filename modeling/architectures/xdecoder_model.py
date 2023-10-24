@@ -307,7 +307,7 @@ class GeneralizedXdecoder(nn.Module):
                 losses_seg = self.forward_seg(batched_inputs['coco'])
                 losses.update(losses_seg)
             if self.task_switch['retrieval'] or self.task_switch['captioning']:
-                losses_vlp = self.forward_vlp(batched_inputs['vlp'])
+                losses_vlp = self.forward_vlp(batched_inputs['instp'])
                 losses.update(losses_vlp)
             for k in list(losses.keys()):
                 if k in self.criterion.weight_dict:
@@ -791,16 +791,19 @@ class GeneralizedXdecoder(nn.Module):
     def prepare_vlp_targets(self, batched_inputs, device):
         input_ids = []
         attention_mask = []
+        labels = []
         for cnt, x in enumerate(batched_inputs):
             captions = x['captions']
             randid = random.randint(0, len(captions)-1)
             input_ids += x['tokens']['input_ids'][randid:randid+1]
             attention_mask += x['tokens']['attention_mask'][randid:randid+1]
+            labels += x['tokens']['labels']
 
         input_ids = torch.stack(input_ids)
         attention_mask = torch.stack(attention_mask)
-        tokens = {"input_ids": input_ids, "attention_mask": attention_mask}
-        lang_results = self.sem_seg_head.predictor.lang_encoder.get_text_token_embeddings(tokens, token=True)
+        labels = torch.stack(labels)
+        tokens = {"input_ids": input_ids, "attention_mask": attention_mask, 'labels': labels}
+        lang_results = self.sem_seg_head.predictor.lang_encoder.get_instruction_token_embeddings(tokens, token=True)
 
         target_vlp = []
         for cnt, x in enumerate(batched_inputs):
@@ -808,7 +811,8 @@ class GeneralizedXdecoder(nn.Module):
             target_dict["caption_tokens"] = lang_results['token_emb'][cnt:cnt+1]
             target_dict["caption_proj"] = lang_results['class_emb'][cnt:cnt+1]
             target_dict["caption_tokenids"] = lang_results['tokens']['input_ids'][cnt:cnt+1]
-            target_dict["caption_mask"] = lang_results['tokens']['attention_mask'][cnt:cnt+1]            
+            target_dict["caption_mask"] = lang_results['tokens']['attention_mask'][cnt:cnt+1]
+            target_dict["caption_label"] = lang_results['tokens']['labels'][cnt:cnt+1]              
             target_vlp.append(target_dict)
         return target_vlp
     

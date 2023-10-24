@@ -16,7 +16,7 @@ from utils.arguments import load_opt_command
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def init_wandb(args, job_dir, entity='xueyanz', project='xdecoder', job_name='tmp'):
+def init_wandb(args, job_dir, entity='weip1004', project='uni_cvpr24', job_name='tmp'):
     wandb_dir = os.path.join(job_dir, 'wandb')
     os.makedirs(wandb_dir, exist_ok=True)
     runid = None
@@ -63,7 +63,7 @@ def main(args=None):
 
     if command == "train":
         if opt['rank'] == 0 and opt['WANDB']:
-            wandb.login(key=os.environ['WANDB_KEY'])
+            wandb.login(key='7e4ecf71a336d0afd0a00ca526195a1ae2f750ed')
             init_wandb(opt, trainer.save_folder, job_name=trainer.save_folder)
         trainer.train()
     elif command == "evaluate":
