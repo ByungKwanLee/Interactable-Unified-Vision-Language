@@ -28,7 +28,6 @@ class XDecoder(nn.Module):
     def __init__(
         self,
         lang_encoder: nn.Module,
-        in_channels,
         mask_classification=True,
         *,
         hidden_dim: int,
@@ -47,7 +46,6 @@ class XDecoder(nn.Module):
         """
         NOTE: this interface is experimental.
         Args:
-            in_channels: channels of the input features
             mask_classification: whether to add mask classifier or not
             num_classes: number of classes
             hidden_dim: Transformer feature dimension
@@ -119,8 +117,8 @@ class XDecoder(nn.Module):
         self.input_proj = nn.ModuleList()
         
         for _ in range(self.num_feature_levels):
-            if in_channels != hidden_dim or enforce_input_project:
-                self.input_proj.append(Conv2d(in_channels, hidden_dim, kernel_size=1))
+            if 512 != hidden_dim or enforce_input_project:
+                self.input_proj.append(Conv2d(512, hidden_dim, kernel_size=1))
                 weight_init.c2_xavier_fill(self.input_proj[-1])
             else:
                 self.input_proj.append(nn.Sequential())
@@ -157,15 +155,13 @@ class XDecoder(nn.Module):
         # LBK EDIT
         self.sam_output_mlp1 = nn.Conv2d(32, 512, kernel_size=(1, 1))
         self.sam_output_mlp2 = nn.Linear(4096, 1, bias=True)
-        # self.sam_output_mlp2 = nn.Linear(9216, 1, bias=True)
 
 
     @classmethod
-    def from_config(cls, cfg, in_channels, lang_encoder, mask_classification, extra):
+    def from_config(cls, cfg, lang_encoder, mask_classification, extra):
         ret = {}
 
         ret["lang_encoder"] = lang_encoder
-        ret["in_channels"] = in_channels
         ret["mask_classification"] = mask_classification
 
         enc_cfg = cfg['MODEL']['ENCODER']
@@ -205,14 +201,13 @@ class XDecoder(nn.Module):
         pos = []
         size_list = []
 
-
+        # embedding tensor
         visual_query_list = []
         for upscaled_embedding in upscaled_embedding_list:
             out = self.sam_output_mlp1(upscaled_embedding)
-            out = self.sam_output_mlp2(out.flatten(2)).transpose(1, 2).contiguous()
+            out = self.sam_output_mlp2(out.flatten(2)).transpose(1, 2)
             visual_query_list.append(out)
         visual_queries = torch.cat(visual_query_list, dim=1)
-
 
         # disable mask, it does not affect performance
         del mask
@@ -338,10 +333,11 @@ class XDecoder(nn.Module):
         size_list = []
         
 
+        # embedding tensor
         visual_query_list = []
         for upscaled_embedding in upscaled_embedding_list:
             out = self.sam_output_mlp1(upscaled_embedding)
-            out = self.sam_output_mlp2(out.flatten(2)).transpose(1, 2).contiguous()
+            out = self.sam_output_mlp2(out.flatten(2)).transpose(1, 2)
             visual_query_list.append(out)
         visual_queries = torch.cat(visual_query_list, dim=1)
 
@@ -519,5 +515,5 @@ class XDecoder(nn.Module):
 
 
 @register_decoder
-def get_xdecoder_interface(cfg, in_channels, lang_encoder, mask_classification, extra):
-    return XDecoder(cfg, in_channels, lang_encoder, mask_classification, extra)
+def get_xdecoder_interface(cfg, lang_encoder, mask_classification, extra):
+    return XDecoder(cfg, lang_encoder, mask_classification, extra)

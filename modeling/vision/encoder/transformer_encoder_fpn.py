@@ -1,20 +1,15 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 import logging
-import numpy as np
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Optional, Union
 
 import torch
 from torch import nn
 from torch.nn import functional as F
-from torch.nn.init import xavier_uniform_, constant_, uniform_, normal_
-from torch.cuda.amp import autocast
 
 import fvcore.nn.weight_init as weight_init
-from detectron2.layers import Conv2d, DeformConv, ShapeSpec, get_norm
+from detectron2.layers import Conv2d, get_norm
 
 from .build import register_encoder
-from .transformer_blocks import TransformerEncoder, TransformerEncoderLayer, _get_clones, _get_activation_fn
-from ...modules import PositionEmbeddingSine
 from ...utils import configurable
 
 
@@ -22,8 +17,6 @@ from ...utils import configurable
 class BasePixelDecoder(nn.Module):
     def __init__(
         self,
-        input_shape: Dict[str, ShapeSpec],
-        *,
         conv_dim: int,
         mask_dim: int,
         mask_on: bool,
@@ -32,16 +25,13 @@ class BasePixelDecoder(nn.Module):
         """
         NOTE: this interface is experimental.
         Args:
-            input_shape: shapes (channels and stride) of the input features
             conv_dims: number of output channels for the intermediate conv layers.
             mask_dim: number of output channels for the final conv layer.
             norm (str or callable): normalization for all conv layers
         """
         super().__init__()
 
-        input_shape = sorted(input_shape.items(), key=lambda x: x[1].stride)
-        self.in_features = [k for k, v in input_shape]  # starting from "res2" to "res5"
-        feature_channels = [v.channels for k, v in input_shape]
+        self.in_features = ['res2', 'res3', 'res4', 'res5']  # starting from "res2" to "res5"
         feature_channels = [768, 768, 768, 768] # LBK EDIT
 
         lateral_convs = []
@@ -110,12 +100,9 @@ class BasePixelDecoder(nn.Module):
         self.maskformer_num_feature_levels = 3  # always use 3 scales
 
     @classmethod
-    def from_config(cls, cfg, input_shape: Dict[str, ShapeSpec]):
+    def from_config(cls, cfg):
         enc_cfg = cfg['MODEL']['ENCODER']
         ret = {}
-        ret["input_shape"] = {
-            k: v for k, v in input_shape.items() if k in enc_cfg['IN_FEATURES']
-        }
         ret["conv_dim"] = enc_cfg['CONVS_DIM']
         ret["mask_dim"] = enc_cfg['MASK_DIM']
         ret["norm"] = enc_cfg['NORM']
@@ -144,45 +131,6 @@ class BasePixelDecoder(nn.Module):
         return mask_features, multi_scale_features
 
 
-class TransformerEncoderOnly(nn.Module):
-    def __init__(
-        self,
-        d_model=512,
-        nhead=8,
-        num_encoder_layers=6,
-        dim_feedforward=2048,
-        dropout=0.1,
-        activation="relu",
-        normalize_before=False,
-    ):
-        super().__init__()
-
-        encoder_layer = TransformerEncoderLayer(
-            d_model, nhead, dim_feedforward, dropout, activation, normalize_before
-        )
-        encoder_norm = nn.LayerNorm(d_model) if normalize_before else None
-        self.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)
-
-        self._reset_parameters()
-
-        self.d_model = d_model
-        self.nhead = nhead
-
-    def _reset_parameters(self):
-        for p in self.parameters():
-            if p.dim() > 1:
-                nn.init.xavier_uniform_(p)
-
-    def forward(self, src, mask, pos_embed):
-        # flatten NxCxHxW to HWxNxC
-        bs, c, h, w = src.shape
-        src = src.flatten(2).permute(2, 0, 1)
-        pos_embed = pos_embed.flatten(2).permute(2, 0, 1)
-        if mask is not None:
-            mask = mask.flatten(1)
-
-        memory = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
-        return memory.permute(1, 2, 0).view(bs, c, h, w)
 
 
 # This is a modified FPN decoder with extra Transformer encoder that processes the lowest-resolution feature map.
@@ -190,13 +138,6 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
     @configurable
     def __init__(
         self,
-        input_shape: Dict[str, ShapeSpec],
-        *,
-        transformer_dropout: float,
-        transformer_nheads: int,
-        transformer_dim_feedforward: int,
-        transformer_enc_layers: int,
-        transformer_pre_norm: bool,
         conv_dim: int,
         mask_dim: int,
         mask_on: int,
@@ -205,22 +146,19 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
         """
         NOTE: this interface is experimental.
         Args:
-            input_shape: shapes (channels and stride) of the input features
-            transformer_dropout: dropout probability in transformer
-            transformer_nheads: number of heads in transformer
-            transformer_dim_feedforward: dimension of feedforward network
-            transformer_enc_layers: number of transformer encoder layers
-            transformer_pre_norm: whether to use pre-layernorm or not
             conv_dims: number of output channels for the intermediate conv layers.
             mask_dim: number of output channels for the final conv layer.
             norm (str or callable): normalization for all conv layers
         """
-        super().__init__(input_shape, conv_dim=conv_dim, mask_dim=mask_dim, norm=norm, mask_on=mask_on)
+        super().__init__(conv_dim=conv_dim, mask_dim=mask_dim, norm=norm, mask_on=mask_on)
 
-        input_shape = sorted(input_shape.items(), key=lambda x: x[1].stride)
-        self.in_features = [k for k, v in input_shape]  # starting from "res2" to "res5"
+        self.in_features = ['res2', 'res3', 'res4', 'res5']  # starting from "res2" to "res5"
 
-        self.mask_proj = Conv2d(256, 1, kernel_size=1)
+        self.seg_head = nn.Sequential(Conv2d(256, 256, kernel_size=1),
+                                      nn.Dropout(),
+                                      Conv2d(256, 256, kernel_size=1),
+                                      nn.ReLU(),
+                                      )
         self.input_proj = Conv2d(256, 512, kernel_size=1)
 
 
@@ -243,17 +181,8 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
         self.output_convs[0] = output_conv
 
     @classmethod
-    def from_config(cls, cfg, input_shape: Dict[str, ShapeSpec]):
-        enc_cfg = cfg['MODEL']['ENCODER']
-        dec_cfg = cfg['MODEL']['DECODER']
-
-        ret = super().from_config(cfg, input_shape)
-        ret["transformer_dropout"] = dec_cfg['DROPOUT']
-        ret["transformer_nheads"] = dec_cfg['NHEADS']
-        ret["transformer_dim_feedforward"] = dec_cfg['DIM_FEEDFORWARD']
-        ret["transformer_enc_layers"] = enc_cfg['TRANSFORMER_ENC_LAYERS']  # a separate config
-        ret["transformer_pre_norm"] = dec_cfg['PRE_NORM']
-
+    def from_config(cls, cfg):
+        ret = super().from_config(cfg)
         ret['mask_on'] = cfg['MODEL']['DECODER']['MASK']
         return ret
 
@@ -261,17 +190,16 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
         multi_scale_features = []
         num_cur_levels = 0
         
-        src_refined_list = []
-        for src in src_list: src_refined_list.append(self.mask_proj(src.transpose(0, 1)).transpose(0, 1))
-        refined_src = torch.cat(src_refined_list, dim=0)
-
+        # avg prompt tensor
+        src_avg_tensor = torch.cat([src.unsqueeze(0) for src in src_list], dim=0).mean(dim=1)
+        
         # Reverse feature maps into top-down order (from low to high resolution)
         for idx, f in enumerate(self.in_features[::-1]):
             x = features[f]
             lateral_conv = self.lateral_convs[idx]
             output_conv = self.output_convs[idx]
             if lateral_conv is None:
-                y = output_conv(self.input_proj(refined_src))
+                y = output_conv(self.input_proj(self.seg_head(src_avg_tensor)))
             else:
                 cur_fpn = lateral_conv(x)
                 # Following FPN implementation, we use nearest upsampling here
@@ -285,8 +213,8 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
         return mask_features, multi_scale_features
 
 @register_encoder
-def get_transformer_encoder_fpn(cfg, input_shape):
+def get_transformer_encoder_fpn(cfg):
     """
     Build a pixel decoder from `cfg.MODEL.MASK_FORMER.PIXEL_DECODER_NAME`.
     """
-    return TransformerEncoderPixelDecoder(cfg, input_shape)
+    return TransformerEncoderPixelDecoder(cfg)

@@ -21,7 +21,6 @@ from detectron2.data import MetadataCatalog
 
 from .build import register_model
 from ..utils import configurable, get_class_names
-from ..vision.backbone import build_backbone, Backbone
 from ..body import build_xdecoder_head
 from ..modules import sem_seg_postprocess, SetCriterion, HungarianMatcher, bbox_postprocess
 from ..language import build_language_encoder
@@ -32,26 +31,12 @@ from utils.constants import COCO_PANOPTIC_CLASSES
 st = LancasterStemmer()
 
 
-# [1] build SAM model
-import sys
-sys.path.append('../../sam')
-from sam import build_sam
-img_resolution = 256
-sam = build_sam.sam_model_registry['vit_b'](checkpoint='sam/ckpt/sam_vit_b_01ec64.pth', custom_img_size=img_resolution)
-from sam.utils.amg import build_all_layer_point_grids
-input_point = torch.as_tensor(build_all_layer_point_grids(16, 0, 1)[0] * img_resolution, dtype=torch.int64).cuda()
-input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
-
-# [2] build resampler
-from .resampler import PerceiverResampler
-
 class GeneralizedXdecoder(nn.Module):
 
     @configurable
     def __init__(
         self,
         *,
-        backbone: Backbone,
         sem_seg_head: nn.Module,
         criterion: nn.Module,
         losses: dict,
@@ -61,7 +46,6 @@ class GeneralizedXdecoder(nn.Module):
         metadata,
         task_switch: dict,
         phrase_prob: float,
-        size_divisibility: int,
         sem_seg_postprocess_before_inference: bool,
         pixel_mean: Tuple[float],
         pixel_std: Tuple[float],
@@ -77,7 +61,6 @@ class GeneralizedXdecoder(nn.Module):
     ):
         """
         Args:
-            backbone: a backbone module, must follow detectron2's backbone interface
             sem_seg_head: a module that predicts semantic segmentation from backbone features
             criterion: a module that defines the loss
             num_queries: int, number of queries
@@ -86,8 +69,6 @@ class GeneralizedXdecoder(nn.Module):
             overlap_threshold: overlap threshold used in general inference for panoptic segmentation
             metadata: dataset meta, get `thing` and `stuff` category names for panoptic
                 segmentation inference
-            size_divisibility: Some backbones require the input height and width to be divisible by a
-                specific integer. We can use this to override such requirement.
             sem_seg_postprocess_before_inference: whether to resize the prediction back
                 to original input size before semantic segmentation inference or after.
                 For high-resolution dataset like Mapillary, resizing predictions before
@@ -100,20 +81,26 @@ class GeneralizedXdecoder(nn.Module):
             test_topk_per_image: int, instance segmentation parameter, keep topk instances per image
         """
         super().__init__()
-        self.backbone = backbone
+
+        # LBK build SAM model
+        import sys
+        sys.path.append('../../sam')
+        from sam import build_sam
+        img_resolution = 256
+        sam = build_sam.sam_model_registry['vit_b'](checkpoint='sam/ckpt/sam_vit_b_01ec64.pth', custom_img_size=img_resolution)
+        from sam.utils.amg import build_all_layer_point_grids
+        self.input_point = torch.as_tensor(build_all_layer_point_grids(16, 0, 1)[0] * img_resolution, dtype=torch.int64).cuda()
+        self.input_label = torch.tensor([1 for _ in range(self.input_point.shape[0])]).cuda()
+
         self.sem_seg_head = sem_seg_head
         self.sam = sam # sam
-        self.resampler = PerceiverResampler # resampler in flamingo
         self.criterion = criterion
         self.losses = losses
         self.num_queries = num_queries
         self.overlap_threshold = overlap_threshold
         self.object_mask_threshold = object_mask_threshold
         self.metadata = metadata
-        if size_divisibility < 0:
-            # use backbone size_divisibility if not set
-            size_divisibility = self.backbone.size_divisibility
-        self.size_divisibility = size_divisibility
+
         self.sem_seg_postprocess_before_inference = sem_seg_postprocess_before_inference
         self.register_buffer("pixel_mean", torch.Tensor(pixel_mean).view(-1, 1, 1), False)
         self.register_buffer("pixel_std", torch.Tensor(pixel_std).view(-1, 1, 1), False)
@@ -171,9 +158,8 @@ class GeneralizedXdecoder(nn.Module):
 
         # build model
         extra = {'task_switch': task_switch}
-        backbone = build_backbone(cfg)
         lang_encoder = build_language_encoder(cfg)        
-        sem_seg_head = build_xdecoder_head(cfg, backbone.output_shape(), lang_encoder, extra)
+        sem_seg_head = build_xdecoder_head(cfg, lang_encoder, extra)
 
         # building criterion
         matcher = HungarianMatcher(
@@ -237,7 +223,6 @@ class GeneralizedXdecoder(nn.Module):
         phrase_prob = dec_cfg['CAPTION'].get('PHRASE_PROB', 0.5)
 
         return {
-            "backbone": backbone,
             "sem_seg_head": sem_seg_head,
             "criterion": criterion,
             "losses": losses,
@@ -245,7 +230,6 @@ class GeneralizedXdecoder(nn.Module):
             "object_mask_threshold": dec_cfg['TEST']['OBJECT_MASK_THRESHOLD'],
             "overlap_threshold": dec_cfg['TEST']['OVERLAP_THRESHOLD'],
             "metadata": MetadataCatalog.get(cfg['DATASETS']['TRAIN'][0]),
-            "size_divisibility": dec_cfg['SIZE_DIVISIBILITY'],
             "sem_seg_postprocess_before_inference": (
                 dec_cfg['TEST']['SEM_SEG_POSTPROCESSING_BEFORE_INFERENCE']
                 or dec_cfg['TEST']['PANOPTIC_ON']
@@ -352,8 +336,8 @@ class GeneralizedXdecoder(nn.Module):
         sam_input = [
             {
                 'image': x["image"].flip(0).to(self.device),
-                'point_coords': input_point,
-                'point_labels': input_label,
+                'point_coords': self.input_point,
+                'point_labels': self.input_label,
                 'original_size': x["image"].shape[1:]
             } for x in batched_inputs
         ] 
@@ -415,8 +399,8 @@ class GeneralizedXdecoder(nn.Module):
         sam_input = [
             {
                 'image': x["image"].flip(0).to(self.device),
-                'point_coords': input_point,
-                'point_labels': input_label,
+                'point_coords': self.input_point,
+                'point_labels': self.input_label,
                 'original_size': x["image"].shape[1:]
             } for x in batched_inputs
         ] 
@@ -466,8 +450,8 @@ class GeneralizedXdecoder(nn.Module):
         sam_input = [
             {
                 'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)).squeeze(0),
-                'point_coords': input_point,
-                'point_labels': input_label,
+                'point_coords': self.input_point,
+                'point_labels': self.input_label,
                 'original_size': x["image"].shape[1:]
             } for x in batched_inputs
         ] 
@@ -541,8 +525,8 @@ class GeneralizedXdecoder(nn.Module):
         sam_input = [
             {
                 'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)).squeeze(0),
-                'point_coords': input_point,
-                'point_labels': input_label,
+                'point_coords': self.input_point,
+                'point_labels': self.input_label,
                 'original_size': x["image"].shape[1:]
             } for x in batched_inputs
         ] 
@@ -593,8 +577,8 @@ class GeneralizedXdecoder(nn.Module):
         sam_input = [
             {
                 'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)).squeeze(0),
-                'point_coords': input_point,
-                'point_labels': input_label,
+                'point_coords': self.input_point,
+                'point_labels': self.input_label,
                 'original_size': x["image"].shape[1:]
             } for x in batched_inputs
         ] 
@@ -634,8 +618,8 @@ class GeneralizedXdecoder(nn.Module):
         sam_input = [
             {
                 'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)).squeeze(0),
-                'point_coords': input_point,
-                'point_labels': input_label,
+                'point_coords': self.input_point,
+                'point_labels': self.input_label,
                 'original_size': x["image"].shape[1:]
             } for x in batched_inputs
         ] 
@@ -661,8 +645,8 @@ class GeneralizedXdecoder(nn.Module):
         sam_input = [
             {
                 'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)).squeeze(0),
-                'point_coords': input_point,
-                'point_labels': input_label,
+                'point_coords': self.input_point,
+                'point_labels': self.input_label,
                 'original_size': x["image"].shape[1:]
             } for x in batched_inputs
         ] 
@@ -724,8 +708,8 @@ class GeneralizedXdecoder(nn.Module):
         sam_input = [
             {
                 'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)).squeeze(0),
-                'point_coords': input_point,
-                'point_labels': input_label,
+                'point_coords': self.input_point,
+                'point_labels': self.input_label,
                 'original_size': x["image"].shape[1:]
             } for x in batched_inputs
         ] 

@@ -35,13 +35,16 @@ def align_and_update_state_dicts(model_state_dict, ckpt_state_dict):
     matched_log = []
     unmatched_log = []
     unloaded_log = []
+
+    filtered_ckpt_keys = list(filter(lambda x: not x.startswith('backbone'), ckpt_keys))
+
     for model_key in model_keys:
         model_weight = model_state_dict[model_key]
-        if model_key in ckpt_keys:
+        if model_key in filtered_ckpt_keys:
             ckpt_weight = ckpt_state_dict[model_key]
             if model_weight.shape == ckpt_weight.shape:
                 result_dicts[model_key] = ckpt_weight
-                ckpt_keys.pop(ckpt_keys.index(model_key))
+                filtered_ckpt_keys.pop(filtered_ckpt_keys.index(model_key))
                 matched_log.append("Loaded {}, Model Shape: {} <-> Ckpt Shape: {}".format(model_key, model_weight.shape, ckpt_weight.shape))
             else:
                 unmatched_log.append("*UNMATCHED* {}, Model Shape: {} <-> Ckpt Shape: {}".format(model_key, model_weight.shape, ckpt_weight.shape))
