@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 mpirun -n 8 python lbk_entry.py train \
+# CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 mpirun -n 8 python entry.py train \
 #             --conf_files configs/xdecoder/focalt_unicl_lang.yaml \
 #             --overrides \
 #             FP16 True \
-#             COCO.INPUT.IMAGE_SIZE 256 \
-#             INSTP.INPUT.IMAGE_SIZE 256 \
+#             WANDB False \
 #             MODEL.DECODER.HIDDEN_DIM 512 \
 #             MODEL.ENCODER.CONVS_DIM 512 \
 #             MODEL.ENCODER.MASK_DIM 512 \
@@ -18,13 +17,15 @@
 #             MODEL.DECODER.TOP_GROUNDING_LAYERS 6 \
 #             MODEL.DECODER.GROUNDING.TEXT_WEIGHT 2.0 \
 #             MODEL.DECODER.GROUNDING.CLASS_WEIGHT 0.5 \
+#             COCO.INPUT.IMAGE_SIZE 256 \
 #             COCO.TEST.BATCH_SIZE_TOTAL 8 \
 #             COCO.TRAIN.BATCH_SIZE_TOTAL 16 \
 #             COCO.TRAIN.BATCH_SIZE_PER_GPU 2 \
-#             INSTP.TEST.BATCH_SIZE_TOTAL 8 \
-#             INSTP.TRAIN.BATCH_SIZE_TOTAL 16 \
-#             INSTP.TRAIN.BATCH_SIZE_PER_GPU 2 \
-#             INSTP.DATALOADER.NUM_WORKERS 32 \
+#             VLP.INPUT.IMAGE_SIZE 256 \
+#             VLP.TEST.BATCH_SIZE_TOTAL 8 \
+#             VLP.TRAIN.BATCH_SIZE_TOTAL 16 \
+#             VLP.TRAIN.BATCH_SIZE_PER_GPU 2 \
+#             VLP.DATALOADER.NUM_WORKERS 20 \
 #             ADE20K.TEST.BATCH_SIZE_TOTAL 8 \
 #             REF.TEST.BATCH_SIZE_TOTAL 8 \
 #             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \

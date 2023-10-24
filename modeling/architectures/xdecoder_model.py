@@ -307,7 +307,11 @@ class GeneralizedXdecoder(nn.Module):
                 losses_seg = self.forward_seg(batched_inputs['coco'])
                 losses.update(losses_seg)
             if self.task_switch['retrieval'] or self.task_switch['captioning']:
-                losses_vlp = self.forward_vlp(batched_inputs['instp'])
+                try:
+                    batched_inputs_ = batched_inputs['vlp']
+                except:
+                    batched_inputs_ = batched_inputs['instp']
+                losses_vlp = self.forward_vlp(batched_inputs_)
                 losses.update(losses_vlp)
             for k in list(losses.keys()):
                 if k in self.criterion.weight_dict:
@@ -789,32 +793,60 @@ class GeneralizedXdecoder(nn.Module):
         return processed_results
 
     def prepare_vlp_targets(self, batched_inputs, device):
-        input_ids = []
-        attention_mask = []
-        labels = []
-        for cnt, x in enumerate(batched_inputs):
-            captions = x['captions']
-            randid = random.randint(0, len(captions)-1)
-            input_ids += x['tokens']['input_ids'][randid:randid+1]
-            attention_mask += x['tokens']['attention_mask'][randid:randid+1]
-            labels += x['tokens']['labels']
 
-        input_ids = torch.stack(input_ids)
-        attention_mask = torch.stack(attention_mask)
-        labels = torch.stack(labels)
-        tokens = {"input_ids": input_ids, "attention_mask": attention_mask, 'labels': labels}
-        lang_results = self.sem_seg_head.predictor.lang_encoder.get_instruction_token_embeddings(tokens, token=True)
+        # INSTP
+        try:
+            input_ids = []
+            attention_mask = []
+            labels = []
+            for cnt, x in enumerate(batched_inputs):
+                captions = x['captions']
+                randid = random.randint(0, len(captions)-1)
+                input_ids += x['tokens']['input_ids'][randid:randid+1]
+                attention_mask += x['tokens']['attention_mask'][randid:randid+1]
+                labels += x['tokens']['labels']
 
-        target_vlp = []
-        for cnt, x in enumerate(batched_inputs):
-            target_dict = {}
-            target_dict["caption_tokens"] = lang_results['token_emb'][cnt:cnt+1]
-            target_dict["caption_proj"] = lang_results['class_emb'][cnt:cnt+1]
-            target_dict["caption_tokenids"] = lang_results['tokens']['input_ids'][cnt:cnt+1]
-            target_dict["caption_mask"] = lang_results['tokens']['attention_mask'][cnt:cnt+1]
-            target_dict["caption_label"] = lang_results['tokens']['labels'][cnt:cnt+1]              
-            target_vlp.append(target_dict)
-        return target_vlp
+            input_ids = torch.stack(input_ids)
+            attention_mask = torch.stack(attention_mask)
+            labels = torch.stack(labels)
+            tokens = {"input_ids": input_ids, "attention_mask": attention_mask, 'labels': labels}
+            lang_results = self.sem_seg_head.predictor.lang_encoder.get_instruction_token_embeddings(tokens, token=True)
+
+            target_vlp = []
+            for cnt, x in enumerate(batched_inputs):
+                target_dict = {}
+                target_dict["caption_tokens"] = lang_results['token_emb'][cnt:cnt+1]
+                target_dict["caption_proj"] = lang_results['class_emb'][cnt:cnt+1]
+                target_dict["caption_tokenids"] = lang_results['tokens']['input_ids'][cnt:cnt+1]
+                target_dict["caption_mask"] = lang_results['tokens']['attention_mask'][cnt:cnt+1]
+                target_dict["caption_label"] = lang_results['tokens']['labels'][cnt:cnt+1]              
+                target_vlp.append(target_dict)
+            return target_vlp
+        # VLP
+        except:
+            input_ids = []
+            attention_mask = []
+            for cnt, x in enumerate(batched_inputs):
+                captions = x['captions']
+                randid = random.randint(0, len(captions)-1)
+                input_ids += x['tokens']['input_ids'][randid:randid+1]
+                attention_mask += x['tokens']['attention_mask'][randid:randid+1]
+
+            input_ids = torch.stack(input_ids)
+            attention_mask = torch.stack(attention_mask)
+            tokens = {"input_ids": input_ids, "attention_mask": attention_mask}
+            lang_results = self.sem_seg_head.predictor.lang_encoder.get_text_token_embeddings(tokens, token=True)
+
+            target_vlp = []
+            for cnt, x in enumerate(batched_inputs):
+                target_dict = {}
+                target_dict["caption_tokens"] = lang_results['token_emb'][cnt:cnt+1]
+                target_dict["caption_proj"] = lang_results['class_emb'][cnt:cnt+1]
+                target_dict["caption_tokenids"] = lang_results['tokens']['input_ids'][cnt:cnt+1]
+                target_dict["caption_mask"] = lang_results['tokens']['attention_mask'][cnt:cnt+1]            
+                target_vlp.append(target_dict)
+            return target_vlp
+
     
     def prepare_targets(self, batched_inputs, images):
         h_pad, w_pad = images.shape[-2:]

@@ -232,48 +232,53 @@ class SetCriterion(nn.Module):
         return losses
 
     def loss_captionings(self, outputs, targets, indices, num_masks, layer_id, extra):
-        if layer_id >= self.top_x_layers['captioning']:
-            return {"loss_captioning_0": 0}
+        # INSTP
+        try:
+            if layer_id >= self.top_x_layers['captioning']:
+                return {"loss_captioning_0": 0}
 
-        pred_captions_gen = outputs['pred_captionings'][:, :-1]
-        token_embs = extra['token_embedding'].weight
-        # token_embs = (token_embs / token_embs.norm(dim=-1, keepdim=True) + 1e-7)
-        # pred_captions_gen = (pred_captions_gen / pred_captions_gen.norm(dim=-1, keepdim=True) + 1e-7)
-        pred_captions_gen = pred_captions_gen @ token_embs.t()
+            pred_captions_gen = outputs['pred_captionings'][:, :-1]
+            token_embs = extra['token_embedding'].weight
+            # token_embs = (token_embs / token_embs.norm(dim=-1, keepdim=True) + 1e-7)
+            # pred_captions_gen = (pred_captions_gen / pred_captions_gen.norm(dim=-1, keepdim=True) + 1e-7)
+            pred_captions_gen = pred_captions_gen @ token_embs.t()
 
-        # temperature = extra['lang_encoder'].logit_scale
-        # logit_scale = temperature.exp().clamp(max=100)
+            # temperature = extra['lang_encoder'].logit_scale
+            # logit_scale = temperature.exp().clamp(max=100)
 
-        target_captions_gen = torch.cat([target['caption_label'] for target in targets], 0)[:, 1:]
-        target_captions_gen_mask = torch.cat([target['caption_mask'] for target in targets], 0)[:, 1:]
+            target_captions_gen = torch.cat([target['caption_label'] for target in targets], 0)[:, 1:]
+            target_captions_gen_mask = torch.cat([target['caption_mask'] for target in targets], 0)[:, 1:]
 
-        # loss_caption = F.cross_entropy(pred_captions_gen.transpose(1,2) * logit_scale, target_captions_gen, reduction='none')
-        loss_caption = F.cross_entropy(pred_captions_gen.transpose(1,2), target_captions_gen)
-        # loss_caption = (loss_caption * target_captions_gen_mask).sum() / (target_captions_gen_mask.sum() + 1)
-        losses = {"loss_captioning_0": loss_caption}
-        return losses
+            # loss_caption = F.cross_entropy(pred_captions_gen.transpose(1,2) * logit_scale, target_captions_gen, reduction='none')
+            loss_caption = F.cross_entropy(pred_captions_gen.transpose(1,2), target_captions_gen)
+            # loss_caption = (loss_caption * target_captions_gen_mask).sum() / (target_captions_gen_mask.sum() + 1)
+            losses = {"loss_captioning_0": loss_caption}
+            return losses
+        # VLP
+        except:
+            if layer_id >= self.top_x_layers['captioning']:
+                return {"loss_captioning_0": 0}
 
-    # def loss_captionings(self, outputs, targets, indices, num_masks, layer_id, extra):
-        # if layer_id >= self.top_x_layers['captioning']:
-        #     return {"loss_captioning_0": 0}
+            pred_captions_gen = outputs['pred_captionings'][:, :-1]
+            token_embs = extra['token_embedding'].weight
+            # token_embs = (token_embs / token_embs.norm(dim=-1, keepdim=True) + 1e-7)
+            # pred_captions_gen = (pred_captions_gen / pred_captions_gen.norm(dim=-1, keepdim=True) + 1e-7)
+            pred_captions_gen = pred_captions_gen @ token_embs.t()
 
-        # pred_captions_gen = outputs['pred_captionings'][:, :-1]
-        # token_embs = extra['token_embedding'].weight
-        # # token_embs = (token_embs / token_embs.norm(dim=-1, keepdim=True) + 1e-7)
-        # # pred_captions_gen = (pred_captions_gen / pred_captions_gen.norm(dim=-1, keepdim=True) + 1e-7)
-        # pred_captions_gen = pred_captions_gen @ token_embs.t()
+            # temperature = extra['lang_encoder'].logit_scale
+            # logit_scale = temperature.exp().clamp(max=100)
 
-        # # temperature = extra['lang_encoder'].logit_scale
-        # # logit_scale = temperature.exp().clamp(max=100)
+            target_captions_gen = torch.cat([target['caption_tokenids'] for target in targets], 0)[:, 1:]
+            target_captions_gen_mask = torch.cat([target['caption_mask'] for target in targets], 0)[:, 1:]
 
-        # target_captions_gen = torch.cat([target['caption_tokenids'] for target in targets], 0)[:, 1:]
-        # target_captions_gen_mask = torch.cat([target['caption_mask'] for target in targets], 0)[:, 1:]
+            # loss_caption = F.cross_entropy(pred_captions_gen.transpose(1,2) * logit_scale, target_captions_gen, reduction='none')
+            loss_caption = F.cross_entropy(pred_captions_gen.transpose(1,2), target_captions_gen, reduction='none')
+            loss_caption = (loss_caption * target_captions_gen_mask).sum() / (target_captions_gen_mask.sum() + 1)
+            losses = {"loss_captioning_0": loss_caption}
+            return losses
 
-        # # loss_caption = F.cross_entropy(pred_captions_gen.transpose(1,2) * logit_scale, target_captions_gen, reduction='none')
-        # loss_caption = F.cross_entropy(pred_captions_gen.transpose(1,2), target_captions_gen, reduction='none')
-        # loss_caption = (loss_caption * target_captions_gen_mask).sum() / (target_captions_gen_mask.sum() + 1)
-        # losses = {"loss_captioning_0": loss_caption}
-        # return losses
+
+        
 
     def loss_captions(self, outputs, targets, indices, num_masks, layer_id, extra):
         if layer_id >= self.top_x_layers['caption']:

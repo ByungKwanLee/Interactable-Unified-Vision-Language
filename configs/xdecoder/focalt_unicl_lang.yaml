@@ -19,7 +19,7 @@ RESUME_FROM: ''
 EVAL_AT_START: False
 
 # Logging and Debug
-WANDB: False
+WANDB: True
 LOG_EVERY: 100
 FIND_UNUSED_PARAMETERS: True # LBK EDIT
 

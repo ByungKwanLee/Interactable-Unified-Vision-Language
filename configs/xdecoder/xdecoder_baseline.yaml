@@ -21,9 +21,9 @@ DONT_LOAD_MODEL: true
 EVAL_AT_START: false
 
 # Logging and Debug
-WANDB: false
+WANDB: true
 LOG_EVERY: 100
-FIND_UNUSED_PARAMETERS: false
+FIND_UNUSED_PARAMETERS: true
 
 # Speed up training
 FP16: false
