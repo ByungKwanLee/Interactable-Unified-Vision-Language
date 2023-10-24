@@ -53,6 +53,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 mpirun -n 8 python entry.py train \
             COCO.TEST.BATCH_SIZE_TOTAL 8 \
             COCO.TRAIN.BATCH_SIZE_TOTAL 8 \
             COCO.TRAIN.BATCH_SIZE_PER_GPU 1 \
+            COCO.DATALOADER.NUM_WORKERS 2 \
             INSTP.INPUT.IMAGE_SIZE 256 \
             INSTP.TEST.BATCH_SIZE_TOTAL 8 \
             INSTP.TRAIN.BATCH_SIZE_TOTAL 64 \

@@ -114,8 +114,8 @@ class XDecoder_Trainer(DefaultTrainer):
                     for key, lr_mul in lr_multiplier.items():
                         if key in "{}.{}".format(module_name, module_param_name):
                             hyperparams["lr"] = hyperparams["lr"] * lr_mul
-                            if is_main_process():
-                                logger.info("Modify Learning rate of {}: {}".format("{}.{}".format(module_name, module_param_name), lr_mul))
+                            # if is_main_process():
+                            #     logger.info("Modify Learning rate of {}: {}".format("{}.{}".format(module_name, module_param_name), lr_mul))
 
                     if (
                         "relative_position_bias_table" in module_param_name
