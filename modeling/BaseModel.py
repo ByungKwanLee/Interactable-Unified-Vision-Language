@@ -15,10 +15,6 @@ class BaseModel(nn.Module):
         self.opt = opt
         self.model = module
 
-
-
-
-
     def forward(self, *inputs, **kwargs):
         outputs = self.model(*inputs, **kwargs)
         return outputs
