@@ -156,8 +156,8 @@ class XDecoder(nn.Module):
 
         # LBK EDIT
         self.sam_output_mlp1 = nn.Conv2d(32, 512, kernel_size=(1, 1))
-        # self.sam_output_mlp2 = nn.Linear(4096, 1, bias=True)
-        self.sam_output_mlp2 = nn.Linear(9216, 1, bias=True)
+        self.sam_output_mlp2 = nn.Linear(4096, 1, bias=True)
+        # self.sam_output_mlp2 = nn.Linear(9216, 1, bias=True)
 
 
     @classmethod
