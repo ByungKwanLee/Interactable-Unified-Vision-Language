@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 mpirun -n 8 python entry.py train \
+# CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 mpirun -n 8 python lbk_entry.py train \
 #             --conf_files configs/xdecoder/focalt_unicl_lang.yaml \
 #             --overrides \
 #             FP16 True \
@@ -64,4 +64,3 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 mpirun -n 8 python entry.py train \
             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
             WEIGHT True \
             RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
-
