@@ -209,7 +209,7 @@ class XDecoder(nn.Module):
         visual_query_list = []
         for upscaled_embedding in upscaled_embedding_list:
             out = self.sam_output_mlp1(upscaled_embedding)
-            out = self.sam_output_mlp2(out.flatten(2)).transpose(1, 2)
+            out = self.sam_output_mlp2(out.flatten(2)).transpose(1, 2).contiguous()
             visual_query_list.append(out)
         visual_queries = torch.cat(visual_query_list, dim=1)
 
@@ -341,7 +341,7 @@ class XDecoder(nn.Module):
         visual_query_list = []
         for upscaled_embedding in upscaled_embedding_list:
             out = self.sam_output_mlp1(upscaled_embedding)
-            out = self.sam_output_mlp2(out.flatten(2)).transpose(1, 2)
+            out = self.sam_output_mlp2(out.flatten(2)).transpose(1, 2).contiguous()
             visual_query_list.append(out)
         visual_queries = torch.cat(visual_query_list, dim=1)
 
