@@ -792,8 +792,8 @@ class GeneralizedXdecoder(nn.Module):
 
         return processed_results
 
+    # VLP 
     def prepare_vlp_targets(self, batched_inputs, device):
-
         # INSTP
         try:
             input_ids = []
