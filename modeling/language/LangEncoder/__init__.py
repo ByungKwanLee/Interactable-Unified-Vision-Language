@@ -50,11 +50,11 @@ def build_tokenizer(config_encoder):
         # tokenizer = CLIPTokenizer.from_pretrained(pretrained_tokenizer)
         tokenizer = CLIPTokenizer.from_pretrained(pretrained_tokenizer, model_max_length=256,
             padding_side="right", use_fast=False,)
+        tokenizer.add_special_tokens({'cls_token': tokenizer.eos_token})
         tokenizer.pad_token = tokenizer.unk_token
-        
         conversation_lib.default_conversation = conversation_lib.conv_templates['v1']
 
-        tokenizer.add_special_tokens({'cls_token': tokenizer.eos_token})
+        
 
     elif config_encoder['TOKENIZER'] == 'clip-fast':
         pretrained_tokenizer = config_encoder.get(

@@ -389,7 +389,7 @@ class GeneralizedXdecoder(nn.Module):
         images = torch.cat([x["image"].flip(0).to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
         images = (images - self.pixel_mean) / self.pixel_std
                 
-        targets_vlp = self.prepare_vlp_targets(batched_inputs, images.device)
+        targets_vlp = self.prepare_vlp_targets(batched_inputs)
 
         extra = {"token_embedding": self.sem_seg_head.predictor.lang_encoder.lang_encoder.token_embedding,
                  "lang_encoder": self.sem_seg_head.predictor.lang_encoder,
@@ -777,7 +777,7 @@ class GeneralizedXdecoder(nn.Module):
         return processed_results
 
     # VLP 
-    def prepare_vlp_targets(self, batched_inputs, device):
+    def prepare_vlp_targets(self, batched_inputs):
         # INSTP
         try:
             input_ids = []

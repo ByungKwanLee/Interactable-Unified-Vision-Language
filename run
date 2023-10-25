@@ -39,6 +39,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 mpirun -n 8 python entry.py train \
 #             --conf_files configs/xdecoder/xdecoder_baseline.yaml \
 #             --overrides \
 #             FP16 True \
+#             WANDB True \
 #             MODEL.DECODER.HIDDEN_DIM 512 \
 #             MODEL.ENCODER.CONVS_DIM 512 \
 #             MODEL.ENCODER.MASK_DIM 512 \
