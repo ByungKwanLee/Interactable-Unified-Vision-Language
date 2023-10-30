@@ -8,6 +8,7 @@
 import pickle
 from distutils import log
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.distributed as dist
@@ -130,7 +131,7 @@ def all_gather_pickle(data, device):
 
     # serialized to a Tensor
     buffer = pickle.dumps(data)
-    storage = torch.ByteStorage.from_buffer(buffer)
+    storage = torch.UntypedStorage.from_buffer(buffer, dtype=torch.uint8)
     tensor = torch.ByteTensor(storage).to(device)
 
     # obtain Tensor size of each rank

@@ -79,14 +79,14 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
         results = self._eval_on_set(self.save_folder)
         return results
 
-    def _eval_on_set(self, save_folder):
+    def _eval_on_set(self):
         logger.info(f"Evaluation start ...")
         if self.opt['FP16']:
             from torch.cuda.amp import autocast
             with autocast():
-                results = self.pipeline.evaluate_model(self, save_folder)
+                results = self.pipeline.evaluate_model(self)
         else:        
-            results = self.pipeline.evaluate_model(self, save_folder)
+            results = self.pipeline.evaluate_model(self)
         if self.opt['rank'] == 0:
             logger.info(results)
         return results
@@ -222,16 +222,17 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
             if self.opt['rank'] == 0 and self.opt['WANDB']:
                 wandb.log(results)
 
+        max_length_dataset = 0
+        for dataset_name in self.train_dataloaders.dataset_names:
+            if max_length_dataset < len(getattr(self.train_dataloaders, dataset_name)):
+                max_length_dataset = len(getattr(self.train_dataloaders, dataset_name))
+        
         for epoch in range(self.train_params['start_epoch_idx'], num_epochs):
             self.train_params['current_epoch_idx'] = epoch
             if self.opt['rank'] == 0: print(f"Start epoch: {epoch} training.")
             
-            prog_bar = tqdm(enumerate(self.train_dataloaders), total=len(self.train_dataloaders), leave=True)
+            prog_bar = tqdm(enumerate(self.train_dataloaders), total=max_length_dataset, leave=True)
             for batch_idx, batch in prog_bar:
-                if self.train_params['current_epoch_idx'] == self.train_params['start_epoch_idx']:
-                    if batch_idx < self.train_params['start_batch_idx']: # skip the first few batches for resuming
-                        continue
-
                 self.train_params['current_batch_idx'] = batch_idx
                 prev_optim_steps = current_optim_steps
 
@@ -253,14 +254,20 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
 
                 loss_list = [obj.val for _, obj in self.train_loss.losses.items()]
                 total_loss = sum(loss_list) / len(loss_list)
-                desc = f"Epochs[{epoch:3}] optim steps[{current_optim_steps:.0f}] and "
-                desc += f"LR[{', '.join([f'{val:.3e}' for _, val in last_lr.items()])}] and "
-                desc += f"Total-Loss[{total_loss:.3f}]"
+                desc = f"|ID[{batch_idx}]|Epochs[{epoch}]|Mlen[{max_length_dataset}]|"
+                desc += f"Steps[{current_optim_steps:.0f}]|"
+                desc += f"LR[{', '.join([f'{val:.2e}' for _, val in last_lr.items()])}]|"
+                desc += f"Loss[{total_loss:.2f}]|"
                 prog_bar.set_description(desc, refresh=True)
+                # break
+                if max_length_dataset == batch_idx + 1: break
+
+            # synchronize
+            if torch.cuda.is_available(): torch.cuda.synchronize()
 
             # evaluate and save ckpt every epoch
             self.save_checkpoint(self.train_params['num_updates'])
-            results = self._eval_on_set(self.save_folder)
+            results = self._eval_on_set()
             if self.opt['rank'] == 0: print(f"Results: {results}")
             if self.opt['rank'] == 0 and self.opt['WANDB']:
                 wandb.log(results)

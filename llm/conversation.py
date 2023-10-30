@@ -261,27 +261,6 @@ conv_vicuna_v1 = Conversation(
     sep2="</s>",
 )
 
-conv_sys = Conversation(
-    system="",
-    roles=("USER", "ASSISTANT"),
-    version="sys_v1",
-    messages=(),
-    offset=0,
-    sep_style=SeparatorStyle.TWO,
-    sep=" ",
-    sep2="</s>",
-)
-
-# conv_sys = Conversation(
-#     system="",
-#     roles=("", ""),
-#     messages=(
-#     ),
-#     offset=0,
-#     sep_style=SeparatorStyle.PLAIN,
-#     sep="\n",
-# )
-
 conv_llama_2 = Conversation(
     system="""You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
 
@@ -378,12 +357,11 @@ conv_llava_v1_mmtag = Conversation(
     version="v1_mmtag",
 )
 
-default_conversation = conv_sys
+default_conversation = conv_vicuna_v0
 conv_templates = {
     "default": conv_vicuna_v0,
     "v0": conv_vicuna_v0,
     "v1": conv_vicuna_v1,
-    "sys_v1": conv_sys,
     "vicuna_v1": conv_vicuna_v1,
     "llama_2": conv_llama_2,
 

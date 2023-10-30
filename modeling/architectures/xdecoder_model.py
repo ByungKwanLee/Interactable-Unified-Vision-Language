@@ -27,6 +27,7 @@ from ..language import build_language_encoder
 from ..language.loss import vl_similarity, image_text_contrastive_loss_queue
 from utils.prompt_engineering import prompt_engineering
 from utils.constants import COCO_PANOPTIC_CLASSES
+from llm.load_llm import prepare_llm
 
 st = LancasterStemmer()
 
@@ -92,6 +93,9 @@ class GeneralizedXdecoder(nn.Module):
         self.input_point = torch.as_tensor(build_all_layer_point_grids(16, 0, 1)[0] * img_resolution, dtype=torch.int64).cuda()
         self.input_label = torch.tensor([1 for _ in range(self.input_point.shape[0])]).cuda()
 
+        # LBK build LLM
+        # self.model, self.llm_tokenizer = prepare_llm() 
+
         self.sem_seg_head = sem_seg_head
         self.sam = sam # sam
         self.criterion = criterion
@@ -128,7 +132,6 @@ class GeneralizedXdecoder(nn.Module):
 
     @classmethod
     def from_config(cls, cfg):
-        enc_cfg = cfg['MODEL']['ENCODER']
         dec_cfg = cfg['MODEL']['DECODER']
 
         # Loss parameters:
@@ -283,7 +286,7 @@ class GeneralizedXdecoder(nn.Module):
         # visualization
         # a = batched_inputs['coco'][0]['image'].permute(1,2,0).flip(2).cpu().numpy()
         # b = batched_inputs['coco'][0]['instances']._fields['gt_masks'][0].cpu().numpy()
-        # c = batched_inputs['vlp'][1]['image'].permute(1,2,0).flip(2).cpu().numpy()
+        # c = batched_inputs['instp'][1]['image'].permute(1,2,0).cpu().numpy()
         
         if self.training:
             losses = {}
@@ -311,7 +314,7 @@ class GeneralizedXdecoder(nn.Module):
             elif mode == 'classification':
                 return self.evaluate_classification(batched_inputs)
             elif mode == 'grounding_refcoco':
-                return self.evaluate_grounding(batched_inputs, mode)
+                return self.evaluate_grounding(batched_inputs)
             else:
                 return self.evaluate(batched_inputs)
 
@@ -537,7 +540,7 @@ class GeneralizedXdecoder(nn.Module):
 
         # compute backbone score
         if self.task_switch['retrieval'] and self.retrieval_emsemble:
-            _v_emb_it = features['res5']
+            _v_emb_it = x_list['res5']
             bs,nc,_,_ = _v_emb_it.shape
             _v_emb_it = _v_emb_it.reshape(bs,nc,-1)
             _v_emb_it = F.adaptive_avg_pool1d(_v_emb_it, 1).reshape(bs,nc) @ self.backbone_proj
@@ -566,7 +569,7 @@ class GeneralizedXdecoder(nn.Module):
                 }
             processed_results[-1]["caption"] = caption_results            
 
-        del features
+        del x_list
         return processed_results
 
     def evaluate_captioning(self, batched_inputs):
@@ -700,7 +703,7 @@ class GeneralizedXdecoder(nn.Module):
 
         return processed_results
 
-    def evaluate_grounding(self, batched_inputs, mode):
+    def evaluate_grounding(self, batched_inputs):
         images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(256, 256)) for x in batched_inputs], dim=0)
         images = (images - self.pixel_mean) / self.pixel_std
         
@@ -713,7 +716,7 @@ class GeneralizedXdecoder(nn.Module):
                 'original_size': x["image"].shape[1:]
             } for x in batched_inputs
         ] 
-        x_list, _, upscaled_embedding_list, src_List\
+        x_list, _, upscaled_embedding_list, src_list\
             = self.sam(sam_input, multimask_output=True)
 
         extra = {}
@@ -729,12 +732,13 @@ class GeneralizedXdecoder(nn.Module):
             query_emb = token_emb[tokens['attention_mask'].bool()]
             extra['grounding_tokens'] = query_emb[:,None]
 
-
-            outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_List,
+            outputs = self.sem_seg_head({k: v[idx].unsqueeze(0) for k, v in x_list.items()}, 
+                                        [upscaled_embedding_list[idx]],
+                                        [src_list[idx]],
                                        extra=extra, task='grounding_eval')
 
-            pred_gmasks = outputs['pred_masks'][idx,self.num_queries:2*self.num_queries-1]
-            v_emb = outputs['pred_captions'][idx,self.num_queries:2*self.num_queries-1]
+            pred_gmasks = outputs['pred_masks'][0, self.num_queries:2*self.num_queries-1]
+            v_emb = outputs['pred_captions'][0, self.num_queries:2*self.num_queries-1]
             t_emb = gtext['class_emb']
 
             t_emb = t_emb / (t_emb.norm(dim=-1, keepdim=True) + 1e-7)

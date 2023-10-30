@@ -123,12 +123,12 @@ class MPIAdapter:
         Initializes the default PyTorch distributed process group.
         """
         # of not printing logger.info messages on processes with rank > 0
-        logger.warning('trying to initialize process group ...')
+        # logger.warning('trying to initialize process group ...')
         torch.distributed.init_process_group(backend=backend,
                                              init_method=self.init_method_url,
                                              world_size=self.world_size,
                                              rank=self.rank)
-        logger.warning('process group initialized')
+        # logger.warning('process group initialized')
 
     def _set_env_vars(self):
         """

@@ -151,10 +151,8 @@ class XDecoder(nn.Module):
         self_attn_mask[:, num_queries-1:num_queries, :num_queries-1] = True # class query does not attend with object query.
         self.register_buffer("self_attn_mask", self_attn_mask)
 
-
         # LBK EDIT
-        self.sam_output_mlp1 = nn.Conv2d(32, 512, kernel_size=(1, 1))
-        self.sam_output_mlp2 = nn.Linear(4096, 1, bias=True)
+        self.sam_pler = nn.Conv3d(in_channels=32, out_channels=512, kernel_size=(1, 64, 64))
 
 
     @classmethod
@@ -204,8 +202,7 @@ class XDecoder(nn.Module):
         # embedding tensor
         visual_query_list = []
         for upscaled_embedding in upscaled_embedding_list:
-            out = self.sam_output_mlp1(upscaled_embedding)
-            out = self.sam_output_mlp2(out.flatten(2)).transpose(1, 2)
+            out = self.sam_pler(upscaled_embedding.transpose(0, 1).contiguous().unsqueeze(0)).squeeze(3, 4).permute(2, 0, 1)
             visual_query_list.append(out)
         visual_queries = torch.cat(visual_query_list, dim=1)
 
@@ -222,7 +219,7 @@ class XDecoder(nn.Module):
 
         _, bs, _ = src[0].shape
 
-        # QxNxC (Q=256+1)
+        # QxNxC (Q=100+1 -> Q=256+1)
         query_embed = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1) # positional embedding [101, B, 512]
         output = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1) # learnable feature [101, B, 512]
         output[:-1, ...] += visual_queries 
@@ -332,12 +329,10 @@ class XDecoder(nn.Module):
         pos = []
         size_list = []
         
-
         # embedding tensor
         visual_query_list = []
         for upscaled_embedding in upscaled_embedding_list:
-            out = self.sam_output_mlp1(upscaled_embedding)
-            out = self.sam_output_mlp2(out.flatten(2)).transpose(1, 2)
+            out = self.sam_pler(upscaled_embedding.transpose(0, 1).contiguous().unsqueeze(0)).squeeze(3, 4).permute(2, 0, 1)
             visual_query_list.append(out)
         visual_queries = torch.cat(visual_query_list, dim=1)
 

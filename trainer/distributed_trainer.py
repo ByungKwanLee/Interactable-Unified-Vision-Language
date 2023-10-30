@@ -41,7 +41,7 @@ class DistributedTrainer:
             logger.info("Using CUDA")
 
         # init distributed training
-        adapter.log_info()
+        # adapter.log_info()
         if torch.distributed.is_available() and self.opt['world_size'] > 1:
             adapter.init_process_group(backend='nccl')
 

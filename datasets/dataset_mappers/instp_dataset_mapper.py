@@ -28,7 +28,6 @@ from modeling.language.LangEncoder import conversation as conversation_lib
 from modeling.language.LangEncoder.mm_utils import tokenizer_image_token
 
 
-
 __all__ = ["InstPreDatasetMapper"]
 
 
@@ -49,64 +48,6 @@ def build_transform_gen(cfg, is_train):
     ])
     
     return augmentation
-
-def _tokenize_fn(strings: Sequence[str],
-                 tokenizer: transformers.PreTrainedTokenizer) -> Dict:
-    """Tokenize a list of strings."""
-    tokenized_list = [
-        tokenizer(
-            text,
-            return_tensors="pt",
-            padding="longest",
-            max_length=tokenizer.model_max_length,
-            truncation=True,
-        ) for text in strings
-    ]
-    input_ids = labels = [
-        tokenized.input_ids[0] for tokenized in tokenized_list
-    ]
-    input_ids_lens = labels_lens = [
-        tokenized.input_ids.ne(tokenizer.pad_token_id).sum().item()
-        for tokenized in tokenized_list
-    ]
-    return dict(
-        input_ids=input_ids,
-        labels=labels,
-        input_ids_lens=input_ids_lens,
-        labels_lens=labels_lens,
-    )
-
-
-def _mask_targets(target, tokenized_lens, speakers):
-    # cur_idx = 0
-    cur_idx = tokenized_lens[0]
-    tokenized_lens = tokenized_lens[1:]
-    target[:cur_idx] = IGNORE_INDEX
-    for tokenized_len, speaker in zip(tokenized_lens, speakers):
-        if speaker == "human":
-            target[cur_idx+2:cur_idx + tokenized_len] = IGNORE_INDEX
-        cur_idx += tokenized_len
-
-
-def _add_speaker_and_signal(header, source, get_conversation=True):
-    """Add speaker and start/end signal on each round."""
-    BEGIN_SIGNAL = "### "
-    END_SIGNAL = "\n"
-    conversation = header
-    for sentence in source:
-        from_str = sentence["from"]
-        if from_str.lower() == "human":
-            from_str = conversation_lib.default_conversation.roles[0]
-        elif from_str.lower() == "gpt":
-            from_str = conversation_lib.default_conversation.roles[1]
-        else:
-            from_str = 'unknown'
-        sentence["value"] = (BEGIN_SIGNAL + from_str + ": " +
-                             sentence["value"] + END_SIGNAL)
-        if get_conversation:
-            conversation += sentence["value"]
-    conversation += BEGIN_SIGNAL
-    return conversation
 
 # This is specifically designed for the COCO dataset.
 class InstPreDatasetMapper:
@@ -222,7 +163,7 @@ class InstPreDatasetMapper:
 
         return sources
 
-    def preprocess_v1(self,
+    def preprocess_sys(self,
         sources,
         tokenizer: transformers.PreTrainedTokenizer,
         has_image: bool = False
@@ -247,13 +188,13 @@ class InstPreDatasetMapper:
         # Tokenize conversations
 
         if has_image:
-            input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
+            input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, self.max_token_num, return_tensors='pt') for prompt in conversations], dim=0)
         else:
             input_ids = tokenizer(
                 conversations,
                 return_tensors="pt",
                 padding="longest",
-                max_length=tokenizer.model_max_length,
+                max_length=self.max_token_num,
                 truncation=True,
             ).input_ids
 
@@ -279,8 +220,8 @@ class InstPreDatasetMapper:
                 parts[0] += sep
 
                 if has_image:
-                    round_len = len(tokenizer_image_token(rou, tokenizer))
-                    instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 2
+                    round_len = len(tokenizer_image_token(rou, tokenizer, self.max_token_num))
+                    instruction_len = len(tokenizer_image_token(parts[0], tokenizer, self.max_token_num)) - 2
                 else:
                     round_len = len(tokenizer(rou).input_ids)
                     instruction_len = len(tokenizer(parts[0]).input_ids) - 2
@@ -290,13 +231,13 @@ class InstPreDatasetMapper:
                 cur_len += round_len
             target[cur_len:] = IGNORE_INDEX
 
-            if cur_len < tokenizer.model_max_length:
-                if cur_len != total_len:
-                    target[:] = IGNORE_INDEX
-                    print(
-                        f"WARNING: tokenization mismatch: {cur_len} vs. {total_len}."
-                        f" (ignored)"
-                    )
+            # if cur_len < self.max_token_num:
+            #     if cur_len != total_len:
+            #         target[:] = IGNORE_INDEX
+            #         print(
+            #             f"WARNING: tokenization mismatch: {cur_len} vs. {total_len}."
+            #             f" (ignored)"
+            #         )
 
         attention_masks = (target != -100).type(torch.float32)
 
@@ -341,7 +282,7 @@ class InstPreDatasetMapper:
 
         sources = self.preprocess_multimodal(copy.deepcopy(sources))
 
-        tokens = self.preprocess_v1(sources, self.tokenizer, has_image=True)
+        tokens = self.preprocess_sys(sources, self.tokenizer, has_image=True)
 
         # tokens = self.tokenizer(
         #     captions, padding='max_length', truncation=True, max_length=self.max_token_num, return_tensors='pt'

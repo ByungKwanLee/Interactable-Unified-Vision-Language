@@ -67,13 +67,12 @@ def load_pretrain_data(arrow_root, meta, name, pretrain_arrows):
                     "cur_id": cur_id,
                 })
             else:
-                for caption in captions:
-                    ret.append( {
-                        "image_id": image_id,
-                        "captions": [caption],
-                        "arr_id": arr_id,
-                        "cur_id": cur_id,
-                    })
+                ret.append( {
+                    "image_id": image_id,
+                    "captions": [captions],
+                    "arr_id": arr_id,
+                    "cur_id": cur_id,
+                })
             cur_id += 1
             image_id += 1
 

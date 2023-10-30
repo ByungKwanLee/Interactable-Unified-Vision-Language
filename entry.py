@@ -8,13 +8,10 @@
 import os
 import sys
 import torch
-import logging
 import wandb
 
 from utils.arguments import load_opt_command
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 def init_wandb(args, job_dir, entity='weip1004', project='uni_cvpr24', job_name='tmp'):
     wandb_dir = os.path.join(job_dir, 'wandb')

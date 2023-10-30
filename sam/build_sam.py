@@ -64,7 +64,6 @@ def _build_sam(
     prompt_embed_dim = 256
     image_size = 1024
     vit_patch_size = 16
-    image_embedding_size = image_size // vit_patch_size
     sam = Sam(
         image_encoder=ImageEncoderViT(
             depth=encoder_depth,
@@ -82,9 +81,6 @@ def _build_sam(
         ),
         prompt_encoder=PromptEncoder(
             embed_dim=prompt_embed_dim,
-            # LBK EDIT (Important)
-            # image_embedding_size=(image_embedding_size, image_embedding_size),
-            # input_image_size=(image_size, image_size),
             image_embedding_size=(custom_img_size//vit_patch_size, custom_img_size//vit_patch_size),
             input_image_size=(custom_img_size, custom_img_size),
             mask_in_chans=16,

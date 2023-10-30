@@ -49,7 +49,7 @@ MODEL:
   TEXT:
     ARCH: vlpencoder
     NAME: transformer
-    TOKENIZER: vicuna
+    TOKENIZER: clip
     CONTEXT_LENGTH: 256 # 77
     WIDTH: 512
     HEADS: 8
@@ -209,7 +209,7 @@ VLP:
     BATCH_SIZE_TOTAL: 2
     BATCH_SIZE_PER_GPU: 1
   TEST:
-    BATCH_SIZE_TOTAL: 3
+    BATCH_SIZE_TOTAL: 8
   DATALOADER:
     FILTER_EMPTY_ANNOTATIONS: False
     NUM_WORKERS: 16
@@ -351,7 +351,7 @@ REF:
     SAMPLER_TRAIN: "TrainingSampler"
     ASPECT_RATIO_GROUPING: False
   TEST:
-    BATCH_SIZE_TOTAL: 1
+    BATCH_SIZE_TOTAL: 8
 
 SUN:
   INPUT:

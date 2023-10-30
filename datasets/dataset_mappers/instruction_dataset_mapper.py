@@ -13,14 +13,19 @@ from PIL import Image
 import numpy as np
 
 import torch
+import torch.nn.functional as F
+import transformers
 
 from detectron2.data import detection_utils as utils
 from detectron2.data import transforms as T
 from detectron2.data import MetadataCatalog
+from typing import Dict, Optional, Sequence, List
 
 from modeling.language.LangEncoder import build_tokenizer
 from modeling.utils import configurable
-
+from modeling.language.LangEncoder.constant import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
+from modeling.language.LangEncoder import conversation as conversation_lib
+from modeling.language.LangEncoder.mm_utils import tokenizer_image_token
 
 __all__ = ["InstructionDatasetMapper"]
 
@@ -42,7 +47,6 @@ def build_transform_gen(cfg, is_train):
     ])
     
     return augmentation
-
 
 # This is specifically designed for the COCO dataset.
 class InstructionDatasetMapper:
@@ -122,6 +126,133 @@ class InstructionDatasetMapper:
         image_bytes.seek(0)
         return Image.open(image_bytes)
 
+    def _add_speaker_and_signal(self, header, source, get_conversation=True):
+        """Add speaker and start/end signal on each round."""
+        BEGIN_SIGNAL = "### "
+        END_SIGNAL = "\n"
+        conversation = header
+        for sentence in source:
+            from_str = sentence["from"]
+            if from_str.lower() == "human":
+                from_str = conversation_lib.default_conversation.roles[0]
+            elif from_str.lower() == "gpt":
+                from_str = conversation_lib.default_conversation.roles[1]
+            else:
+                from_str = 'unknown'
+            sentence["value"] = (BEGIN_SIGNAL + from_str + ": " +
+                                sentence["value"] + END_SIGNAL)
+            if get_conversation:
+                conversation += sentence["value"]
+        conversation += BEGIN_SIGNAL
+        return conversation
+
+    def preprocess_multimodal(self,
+        sources: Sequence[str]):
+
+        for source in sources:
+            for sentence in source:
+                if DEFAULT_IMAGE_TOKEN in sentence['value']:
+                    sentence['value'] = sentence['value'].replace(DEFAULT_IMAGE_TOKEN, '').strip()
+                    sentence['value'] = DEFAULT_IMAGE_TOKEN + '\n' + sentence['value']
+                    sentence['value'] = sentence['value'].strip()
+
+                replace_token = DEFAULT_IMAGE_TOKEN
+
+                sentence["value"] = sentence["value"].replace(DEFAULT_IMAGE_TOKEN, replace_token)
+
+        return sources
+
+    def preprocess_v1(self,
+        sources,
+        tokenizer: transformers.PreTrainedTokenizer,
+        has_image: bool = False
+    ) -> Dict:
+        conv = conversation_lib.default_conversation.copy()
+        roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
+
+        emp_conv = []
+        # Apply prompt templates
+        conversations = []
+        for i, source in enumerate(sources):
+            if roles[source[0]["from"]] != conv.roles[0]:
+                # Skip the first one if it is not from human
+                source = source[1:]
+
+            conv.messages = []
+            for j, sentence in enumerate(source):
+                role = roles[sentence["from"]]
+                assert role == conv.roles[j % 2], f"{i}"
+                conv.append_message(role, sentence["value"])
+            conversations.append(conv.get_prompt())
+
+        # Tokenize conversations
+
+        if has_image:
+            input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, self.max_token_num, return_tensors='pt') for prompt in conversations], dim=0)
+        else:
+            input_ids = tokenizer(
+                conversations,
+                return_tensors="pt",
+                padding="longest",
+                max_length=self.max_token_num,
+                truncation=True,
+            ).input_ids
+
+        targets = input_ids.clone()
+
+        assert conv.sep_style == conversation_lib.SeparatorStyle.TWO
+
+        # Mask targets
+        sep = conv.sep + conv.roles[1] + ": "
+        for conversation, target in zip(conversations, targets):
+            total_len = int(target.ne(tokenizer.pad_token_id).sum())
+
+            rounds = conversation.split(conv.sep2)
+            cur_len = 1
+            target[:cur_len] = IGNORE_INDEX
+            for i, rou in enumerate(rounds):
+                if rou == "":
+                    break
+
+                parts = rou.split(sep)
+                if len(parts) != 2:
+                    break
+                parts[0] += sep
+
+                if has_image:
+                    round_len = len(tokenizer_image_token(rou, tokenizer, self.max_token_num))
+                    instruction_len = len(tokenizer_image_token(parts[0], tokenizer, self.max_token_num)) - 2
+                else:
+                    round_len = len(tokenizer(rou).input_ids)
+                    instruction_len = len(tokenizer(parts[0]).input_ids) - 2
+
+                target[cur_len : cur_len + instruction_len] = IGNORE_INDEX
+
+                cur_len += round_len
+            target[cur_len:] = IGNORE_INDEX
+
+            if cur_len < self.max_token_num:
+                if cur_len != total_len:
+                    target[:] = IGNORE_INDEX
+                    print(
+                        f"WARNING: tokenization mismatch: {cur_len} vs. {total_len}."
+                        f" (ignored)"
+                    )
+
+        attention_masks = (target != -100).type(torch.float32)
+
+        # Pad to length 256
+        max_length = 256
+        input_ids = F.pad(input_ids, (0, max_length - input_ids.size(-1)))
+        targets = F.pad(targets, (0, max_length - targets.size(-1)), value=IGNORE_INDEX)
+        attention_masks = F.pad(attention_masks, (0, max_length - attention_masks.size(-1)))
+
+        return dict(
+            input_ids=input_ids,
+            labels=targets,
+            attention_mask=attention_masks,
+        )
+
     def __call__(self, dataset_dict):
         """
         Args:
@@ -147,9 +278,14 @@ class InstructionDatasetMapper:
         # Therefore it's important to use torch.Tensor.
         dataset_dict["image"] = torch.as_tensor(np.ascontiguousarray(image.transpose(2, 0, 1)))
 
-        captions = dataset_dict['captions']
-        tokens = self.tokenizer(
-            captions, padding='max_length', truncation=True, max_length=self.max_token_num, return_tensors='pt'
-        )
-        dataset_dict['tokens'] = {"input_ids": tokens["input_ids"], "attention_mask": tokens["attention_mask"]}
+        sources = dataset_dict['captions']
+
+        sources = self.preprocess_multimodal(copy.deepcopy(sources))
+
+        tokens = self.preprocess_v1(sources, self.tokenizer, has_image=True)
+
+        # tokens = self.tokenizer(
+        #     captions, padding='max_length', truncation=True, max_length=self.max_token_num, return_tensors='pt'
+        # )
+        dataset_dict['tokens'] = {"input_ids": tokens["input_ids"], "attention_mask": tokens["attention_mask"].unsqueeze(0), "labels": tokens["labels"]}
         return dataset_dict

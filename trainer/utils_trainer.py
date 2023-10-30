@@ -53,7 +53,7 @@ class UtilsTrainer(DistributedTrainer):
         if self.opt['FP16']:
             from torch.cuda.amp import GradScaler
             self.grad_scaler = GradScaler()
-            logger.warning("PyTorch AMP GradScaler initialized.")
+            # logger.warning("PyTorch AMP GradScaler initialized.")
 
         for module_name in self.model_names:
             if self.opt['world_size'] > 1:
@@ -75,7 +75,7 @@ class UtilsTrainer(DistributedTrainer):
 
     def save_checkpoint(self, tag):
         tag = str(tag).zfill(8)
-        logger.warning('Saving checkpoint...')
+        # logger.warning('Saving checkpoint...')
 
         resume_epoch_idx = self.train_params['current_epoch_idx']
         resume_batch_idx = self.train_params['current_batch_idx'] + 1
@@ -151,11 +151,11 @@ class UtilsTrainer(DistributedTrainer):
             with open(os.path.join(self.opt['SAVE_DIR'], f"resume_checkpoint.json"), 'w', encoding='utf-8') as f:
                 json.dump(checkpoint_location, f, cls=JSONEncoder)
 
-        logger.warning(f'Finished saving checkpoint and model to {save_dir}.')
+        logger.warning(f'Saving checkpoint to {save_dir}.')
 
     def load_weight(self, checkpoint_path=None, must_exist=False):
         self.load_model(checkpoint_path)
-        logger.warning(f'Load weights from {checkpoint_path}...')
+        # logger.warning(f'Load weights from {checkpoint_path}...')
 
     def load_checkpoint(self, checkpoint_path=None, must_exist=False):
         logger.warning(f'Resuming checkpoint from {checkpoint_path}...')

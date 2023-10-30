@@ -149,103 +149,55 @@ class LanguageEncoder(nn.Module):
         return ret
     
     def get_instruction_token_embeddings(self, tokens, name='default', token=False, norm=False):
+        max_len = self.max_token_num
         new_input_embeds = []
         new_labels = [] if tokens['labels'] is not None else None
-        new_attention_mask = [] if tokens['attention_mask'] is not None else None
+        new_input_embeds_align = []
+        new_labels_align = []
 
         for batch_idx, cur_input_ids in enumerate(tokens['input_ids']):
+            cur_new_labels = []
+            
             image_token_indices = torch.where(cur_input_ids == IMAGE_TOKEN_INDEX)[0]
-            cur_new_input_embeds = []
+            image_token_start = image_token_indices[0]
+                        
+            new_input_embeds.append(cur_input_ids[cur_input_ids != -200])
+            cur_labels = tokens['labels'][batch_idx]
             
-            if tokens['labels'] is not None:
-                cur_labels = tokens['labels'][batch_idx]
-                cur_new_labels = []
-                assert cur_labels.shape == cur_input_ids.shape
+            cur_new_labels.append(cur_labels[:image_token_start])
+            cur_new_labels.append(cur_labels[image_token_start + 1:])
 
-            if tokens['attention_mask'] is not None:
-                cur_attention_mask = tokens['attention_mask'][batch_idx]
-                cur_new_attention_mask = []
-                assert cur_attention_mask.shape == cur_input_ids.shape
+            cur_new_labels = torch.cat(cur_new_labels, dim=0)
+            new_labels.append(cur_new_labels)
 
-            while image_token_indices.numel() > 0:
-                image_token_start = image_token_indices[0]
-                cur_new_input_embeds.append(cur_input_ids[:image_token_start])
+        for cur_new_embed in new_input_embeds:
+            cur_new_embed = torch.cat((cur_new_embed, torch.zeros((max_len - cur_new_embed.shape[0]), dtype=cur_new_embed.dtype, device=cur_new_embed.device)), dim=0)
+            new_input_embeds_align.append(cur_new_embed)
+        new_input_embeds = torch.stack(new_input_embeds_align, dim=0)
 
-                if tokens['labels'] is not None:
-                    cur_new_labels.append(cur_labels[:image_token_start])
-                    cur_labels = cur_labels[image_token_start+1:]
-                
-                if tokens['attention_mask'] is not None:
-                    cur_new_attention_mask.append(cur_attention_mask[:image_token_start])
-                    cur_attention_mask = cur_attention_mask[image_token_start+1:]
-
-                cur_input_ids = cur_input_ids[image_token_start+1:]
-                image_token_indices = torch.where(cur_input_ids == IMAGE_TOKEN_INDEX)[0]
-
-            if cur_input_ids.numel() > 0:
-                cur_new_input_embeds.append(cur_input_ids)
-
-                if tokens['labels'] is not None:
-                    cur_new_labels.append(cur_labels)
-
-                if tokens['attention_mask'] is not None:
-                    cur_new_attention_mask.append(cur_attention_mask)
-
-            cur_new_input_embeds = [x.to(device=self.device) for x in cur_new_input_embeds]
-            cur_new_input_embeds = torch.cat(cur_new_input_embeds, dim=0)
-            new_input_embeds.append(cur_new_input_embeds)
-
-            
-            if tokens['labels'] is not None:
-                cur_new_labels = torch.cat(cur_new_labels, dim=0)
-                new_labels.append(cur_new_labels)
-            
-            if tokens['attention_mask'] is not None:
-                cur_new_attention_mask = [x.to(device=self.device) for x in cur_new_attention_mask]
-                cur_new_attention_mask = torch.cat(cur_new_attention_mask, dim=0)
-                new_attention_mask.append(cur_new_attention_mask)
-
-        
-        if any(x.size(0) != self.max_token_num for x in new_input_embeds):
-            max_len = self.max_token_num
-
-            new_input_embeds_align = []
-            for cur_new_embed in new_input_embeds:
-                cur_new_embed = torch.cat((cur_new_embed, torch.zeros((max_len - cur_new_embed.shape[0]), dtype=cur_new_embed.dtype, device=cur_new_embed.device)), dim=0)
-                new_input_embeds_align.append(cur_new_embed)
-            new_input_embeds = torch.stack(new_input_embeds_align, dim=0)
-
-            if tokens['labels'] is not None:
-                new_labels_align = []
-                _new_labels = new_labels
-                for cur_new_label in new_labels:
-                    cur_new_label = torch.cat((cur_new_label, torch.full((max_len - cur_new_label.shape[0],), IGNORE_INDEX, dtype=cur_new_label.dtype, device=cur_new_label.device)), dim=0)
-                    new_labels_align.append(cur_new_label)
-                new_labels = torch.stack(new_labels_align, dim=0)
-
-            if tokens['attention_mask'] is not None:
-                new_attention_mask_align = []
-                _new_attention_mask = new_attention_mask
-                for cur_new_attention_mask in new_attention_mask:
-                    new_attn_mask_pad_right = torch.full((max_len - cur_new_attention_mask.shape[0],), False, dtype=tokens['attention_mask'].dtype, device=tokens['attention_mask'].device)
-                    cur_new_attention_mask = torch.cat((cur_new_attention_mask, new_attn_mask_pad_right), dim=0)
-                    new_attention_mask_align.append(cur_new_attention_mask)
-                    
-                new_attention_mask = torch.stack(new_attention_mask_align, dim=0)
-
-        else:
-            new_input_embeds = torch.stack(new_input_embeds, dim=0)
-            if tokens['labels'] is not None:
-                new_labels  = torch.stack(new_labels, dim=0)
-
-            if tokens['attention_mask'] is not None:
-                new_attention_mask = torch.stack(new_attention_mask, dim=0)
+        for cur_new_label in new_labels:
+            cur_new_label = torch.cat((cur_new_label, torch.full((max_len - cur_new_label.shape[0],), IGNORE_INDEX, dtype=cur_new_label.dtype, device=cur_new_label.device)), dim=0)
+            new_labels_align.append(cur_new_label)
+        new_labels = torch.stack(new_labels_align, dim=0)
 
         tokens['input_ids'] = new_input_embeds
         tokens['labels'] = new_labels
+        
+        new_attention_mask = (new_labels != -100).int()
         tokens['attention_mask'] = new_attention_mask
+        
+        class_input_embeds_ = new_input_embeds * new_attention_mask.type(torch.int16) 
+        
+        token_emb, _ = self.forward_language_token((new_input_embeds, new_attention_mask), norm=norm)
+        class_input_embeds = [x[x.nonzero()[0].item():] for x in class_input_embeds_]
 
-        token_emb, class_emb = self.forward_language_token((new_input_embeds, new_attention_mask), norm=norm)
+        new_class_embeds_align = []
+        for cur_new_embed in class_input_embeds:
+            cur_new_embed = torch.cat((cur_new_embed, torch.zeros((max_len - cur_new_embed.shape[0]), dtype=cur_new_embed.dtype, device=cur_new_embed.device)), dim=0)
+            new_class_embeds_align.append(cur_new_embed)
+        new_class_embeds = torch.stack(new_class_embeds_align, dim=0)
+
+        _, class_emb = self.forward_language_token((new_class_embeds, new_attention_mask), norm=norm)
         ret = {"tokens": tokens,
                 "token_emb": token_emb,
                 "class_emb": class_emb,}
