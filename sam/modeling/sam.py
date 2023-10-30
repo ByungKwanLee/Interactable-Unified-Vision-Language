@@ -56,7 +56,7 @@ class Sam(nn.Module):
         multimask_output: bool,
     ) -> List[Dict[str, torch.Tensor]]:
         
-        input_images = torch.stack([self.lbk_preprocess(x["image"]) for x in batched_input], dim=0)
+        input_images = torch.stack([x["image"] for x in batched_input], dim=0)
         image_embeddings, x_list = self.image_encoder(input_images)
 
         hyper_in_list = []
@@ -84,10 +84,3 @@ class Sam(nn.Module):
           src_list.append(src)
 
         return x_list, hyper_in_list, upscaled_embedding_list, src_list
-    
-    # by lbk edit
-    def lbk_preprocess(self, x: torch.Tensor) -> torch.Tensor:
-      """Normalize pixel values and pad to a square input."""
-      # Normalize colors
-      x = (x - self.pixel_mean) / self.pixel_std
-      return x

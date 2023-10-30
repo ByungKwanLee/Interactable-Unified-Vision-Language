@@ -167,8 +167,8 @@ class XDecoder(nn.Module):
 
         ret["hidden_dim"] = dec_cfg['HIDDEN_DIM']
         ret["dim_proj"] = cfg['MODEL']['DIM_PROJ']
-        ret["num_queries"] = 256+1 # (mask proposal queries) # dec_cfg['NUM_OBJECT_QUERIES']
-        ret["contxt_len"] = cfg['MODEL']['TEXT']['CONTEXT_LENGTH']
+        ret["num_queries"] = 256+1
+        ret["contxt_len"] = 256
 
         # Transformer parameters:
         ret["nheads"] = dec_cfg['NHEADS']
@@ -222,6 +222,7 @@ class XDecoder(nn.Module):
         # QxNxC (Q=100+1 -> Q=256+1)
         query_embed = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1) # positional embedding [101, B, 512]
         output = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1) # learnable feature [101, B, 512]
+        query_embed[:-1, ...] += visual_queries 
         output[:-1, ...] += visual_queries 
 
         predictions_class = []
@@ -352,7 +353,8 @@ class XDecoder(nn.Module):
         # QxNxC
         query_embed_ = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1)
         query_feat = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1)   
-        query_feat[:-1, ...] += visual_queries      
+        query_embed_[:-1, ...] += visual_queries 
+        query_feat[:-1, ...] += visual_queries 
         caping_lang_token = extra['start_token'].repeat(bs, 1)
         pos_embed_caping = self.pos_embed_caping.weight.unsqueeze(1).repeat(1, bs, 1)
 

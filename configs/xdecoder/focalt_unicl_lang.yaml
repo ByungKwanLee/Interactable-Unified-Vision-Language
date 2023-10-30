@@ -48,7 +48,6 @@ MODEL:
     ARCH: vlpencoder
     NAME: transformer
     TOKENIZER: clip
-    CONTEXT_LENGTH: 77 # 77
     WIDTH: 512
     HEADS: 8
     LAYERS: 12 # 6
@@ -126,7 +125,6 @@ MODEL:
     BBOX_WEIGHT: 5.0
     GIOU_WEIGHT: 2.0
     HIDDEN_DIM: 512
-    NUM_OBJECT_QUERIES: 101
     NHEADS: 8
     DROPOUT: 0.0
     DIM_FEEDFORWARD: 2048

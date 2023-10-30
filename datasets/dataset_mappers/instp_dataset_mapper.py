@@ -108,7 +108,6 @@ class InstPreDatasetMapper:
         tfm_gens = build_transform_gen(cfg, is_train)
 
         tokenizer = build_tokenizer(cfg['MODEL']['TEXT'])
-        max_token_num = cfg['MODEL']['TEXT']['CONTEXT_LENGTH']
         device = cfg['device']
 
         ret = {
@@ -117,7 +116,7 @@ class InstPreDatasetMapper:
             "tfm_gens": tfm_gens,
             "image_format": cfg['INPUT']['FORMAT'],
             "tokenizer": tokenizer,
-            "max_token_num": max_token_num,
+            "max_token_num": 256,
             "device": device,
         }
         return ret

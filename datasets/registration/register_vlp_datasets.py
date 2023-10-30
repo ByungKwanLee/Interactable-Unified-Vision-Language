@@ -31,7 +31,7 @@ _PREDEFINED_SPLITS_PRETRAIN = {
 
 def get_metadata(name):
     if name in ['vlp_captioning_val', 'vlp_captioning_val2017']:
-        return {'gt_json': os.path.join(_coco_root, 'coco/annotations/captions_val2014.json')}
+        return {'gt_json': os.path.join(_coco_root, 'coco_caption/annotations/captions_val2014.json')}
     else:
         return {}
 

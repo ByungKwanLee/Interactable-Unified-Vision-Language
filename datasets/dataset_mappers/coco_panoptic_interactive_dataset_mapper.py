@@ -147,10 +147,9 @@ class COCOPanopticInteractiveDatasetMapper:
         shape_sampler = build_shape_sampler(cfg)
 
         retrieval = cfg['MODEL']['DECODER']['RETRIEVAL']['ENABLED']
-        tokenizer, max_token_num = None, None
+        tokenizer = None
         if retrieval:
             lang_model = cfg['MODEL']['TEXT']['NAME']
-            max_token_num = cfg['MODEL']['TEXT']['CONTEXT_LENGTH']
             if 'llama' in lang_model:
                 tokenizer = AutoTokenizer.from_pretrained(lang_model, padding_side='right')
                 tokenizer.pad_token = tokenizer.eos_token
@@ -168,7 +167,7 @@ class COCOPanopticInteractiveDatasetMapper:
             "max_grounding_num": cfg['MODEL']['DECODER']['GROUNDING']['MAX_LEN'],
             "shape_sampler": shape_sampler,
             "retrieval": retrieval,
-            "max_token_num": max_token_num,
+            "max_token_num": 256,
             "tokenizer": tokenizer,
         }
         return ret
