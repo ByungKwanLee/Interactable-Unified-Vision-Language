@@ -270,8 +270,7 @@ INPUT:
 DATASETS:
   TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "instp_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  TEST: ["bdd10k_val_sem_seg"]
-  # TEST: ["bdd10k_val_sem_seg", "bdd10k_40_panoptic_val"]
+  TEST: ["refcocog_val_umd", "vlp_val"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 

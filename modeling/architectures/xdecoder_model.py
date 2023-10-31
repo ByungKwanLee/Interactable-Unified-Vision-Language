@@ -641,10 +641,10 @@ class GeneralizedXdecoder(nn.Module):
         # LBK SAM propagation
         sam_input = [
             {
-                'image': F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)).squeeze(0),
+                'image': i,
                 'point_coords': self.input_point,
                 'point_labels': self.input_label,
-            } for x in batched_inputs
+            } for i in images
         ] 
         x_list, _, upscaled_embedding_list, src_list\
             = self.sam(sam_input, multimask_output=True)

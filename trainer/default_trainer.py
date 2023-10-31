@@ -76,19 +76,19 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
         else:
             raise ValueError(f"Model not found: {model_path}")
 
-        results = self._eval_on_set(self.save_folder)
-        return results
+        results = self._eval_on_set()
+        if self.opt['rank'] == 0: self.dictionary_display(results)
 
     def _eval_on_set(self):
-        logger.info(f"Evaluation start ...")
+        # logger.info(f"Evaluation start ...")
         if self.opt['FP16']:
             from torch.cuda.amp import autocast
             with autocast():
                 results = self.pipeline.evaluate_model(self)
         else:        
             results = self.pipeline.evaluate_model(self)
-        if self.opt['rank'] == 0:
-            logger.info(results)
+        # if self.opt['rank'] == 0:
+        #     logger.info(results)
         return results
 
     def compute_loss(self, forward_func, batch):
@@ -209,6 +209,18 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
             logger.info(f"  Gradient Accumulation steps = {self.grad_acc_steps}")
             logger.info(f"  Total optimization steps = {self.opt['SOLVER']['MAX_NUM_EPOCHS'] * self.train_params['updates_per_epoch'] // self.grad_acc_steps}")
 
+    @staticmethod
+    def dictionary_display(results):
+        print('\n-------------------')
+        for key, value in results.items():
+            print(f'DATASET/Task: [{key}]\n')
+            for _key, _value in value.items():
+                print(f'{_key}:')
+                for __key, __value in _value.items():
+                    print(f'    {__key}: {__value}')
+            print('-------------------')
+        print('\n')
+
     def train(self):
         """
         Training
@@ -218,7 +230,7 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
         num_epochs = self.opt['SOLVER']['MAX_NUM_EPOCHS']
 
         if self.opt.get('EVAL_AT_START', False):
-            results = self._eval_on_set(self.save_folder)
+            results = self._eval_on_set()
             if self.opt['rank'] == 0 and self.opt['WANDB']:
                 wandb.log(results)
 
@@ -268,7 +280,5 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
             # evaluate and save ckpt every epoch
             self.save_checkpoint(self.train_params['num_updates'])
             results = self._eval_on_set()
-            if self.opt['rank'] == 0: print(f"Results: {results}")
-            if self.opt['rank'] == 0 and self.opt['WANDB']:
-                wandb.log(results)
-            print(results)
+            if self.opt['rank'] == 0: self.dictionary_display(results)
+            if self.opt['rank'] == 0 and self.opt['WANDB']: wandb.log(results)

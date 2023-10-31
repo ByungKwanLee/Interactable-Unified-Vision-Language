@@ -62,7 +62,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "env": {"CUDA_VISIBLE_DEVICES": "0"},
+            "env": {"CUDA_VISIBLE_DEVICES": "2"},
             "args": ["train", "--conf_files", "configs/xdecoder/xdecoder_baseline.yaml", "--overrides", "FP16", "True", "WANDB", "False",
             "MODEL.DECODER.HIDDEN_DIM", "512", 
             "MODEL.ENCODER.CONVS_DIM", "512", 
