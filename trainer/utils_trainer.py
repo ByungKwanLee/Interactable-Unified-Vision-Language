@@ -75,7 +75,6 @@ class UtilsTrainer(DistributedTrainer):
 
     def save_checkpoint(self, tag):
         tag = str(tag).zfill(8)
-        # logger.warning('Saving checkpoint...')
 
         resume_epoch_idx = self.train_params['current_epoch_idx']
         resume_batch_idx = self.train_params['current_batch_idx'] + 1
@@ -150,8 +149,6 @@ class UtilsTrainer(DistributedTrainer):
                                     'checkpoint_path': os.path.relpath(self.save_folder, start=self.opt['SAVE_DIR'])}
             with open(os.path.join(self.opt['SAVE_DIR'], f"resume_checkpoint.json"), 'w', encoding='utf-8') as f:
                 json.dump(checkpoint_location, f, cls=JSONEncoder)
-
-        logger.warning(f'Saving checkpoint to {save_dir}.')
 
     def load_weight(self, checkpoint_path=None, must_exist=False):
         self.load_model(checkpoint_path)

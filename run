@@ -13,6 +13,7 @@
 #             --overrides \
 #             FP16 True \
 #             PORT $port \
+#             SAVE_DIR ckpt/ \
 #             WANDB True \
 #             MODEL.DECODER.HIDDEN_DIM 512 \
 #             MODEL.ENCODER.CONVS_DIM 512 \
@@ -57,6 +58,7 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             MODEL.TEXT.TOKENIZER clip\
             FP16 True \
             PORT $port \
+            SAVE_DIR ckpt/ \
             MODEL.DECODER.HIDDEN_DIM 512 \
             MODEL.ENCODER.CONVS_DIM 512 \
             MODEL.ENCODER.MASK_DIM 512 \

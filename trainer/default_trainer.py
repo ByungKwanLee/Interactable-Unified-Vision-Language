@@ -266,18 +266,17 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
 
                 loss_list = [obj.val for _, obj in self.train_loss.losses.items()]
                 total_loss = sum(loss_list) / len(loss_list)
-                desc = f"|ID[{batch_idx}]|Epochs[{epoch}]|Mlen[{max_length_dataset}]|"
-                desc += f"Steps[{current_optim_steps:.0f}]|"
+                desc = f"|Epochs[{epoch}]|[{batch_idx+1}/{max_length_dataset}]|"
                 desc += f"LR[{', '.join([f'{val:.2e}' for _, val in last_lr.items()])}]|"
                 desc += f"Loss[{total_loss:.2f}]|"
                 prog_bar.set_description(desc, refresh=True)
-                # break
                 if max_length_dataset == batch_idx + 1: break
 
             # synchronize
             if torch.cuda.is_available(): torch.cuda.synchronize()
 
             # evaluate and save ckpt every epoch
+            if self.opt['rank'] == 0: print('\n-----------Saving CKPT...-----------\n')
             self.save_checkpoint(self.train_params['num_updates'])
             results = self._eval_on_set()
             if self.opt['rank'] == 0: self.dictionary_display(results)
