@@ -275,7 +275,7 @@ class XDecoder(nn.Module):
 
         if task == 'llm':
             decoder_output = self.decoder_norm(output)
-            predictions_image_feat.append(decoder_output[:self.num_queries].transpose(0, 1))
+            predictions_image_feat.append(decoder_output[:self.num_queries-1].transpose(0, 1))
         
         for i in range(self.num_layers):
             level_index = i % self.num_feature_levels
@@ -321,7 +321,7 @@ class XDecoder(nn.Module):
             
             if task == 'llm':
                 decoder_output = self.decoder_norm(output)
-                predictions_image_feat.append(decoder_output[:self.num_queries].transpose(0, 1))
+                predictions_image_feat.append(decoder_output[:self.num_queries-1].transpose(0, 1))
 
         assert len(predictions_class) == self.num_layers + 1
         if task == 'vlp':

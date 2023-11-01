@@ -77,7 +77,8 @@ class GeneralizedXdecoder(nn.Module):
         self.input_label = torch.tensor([1 for _ in range(self.input_point.shape[0])]).cuda()
 
         # LBK build LLM
-        self.model, self.llm_tokenizer = prepare_llm() 
+        self.llm, self.llm_tokenizer, self.data_collator = prepare_llm()
+        self.img_to_lang = nn.Linear(512, 4096)
 
         self.sem_seg_head = sem_seg_head
         self.sam = sam # sam
@@ -276,22 +277,16 @@ class GeneralizedXdecoder(nn.Module):
         if self.training:
             losses = {}
             if self.task_switch['mask']:
-                losses_seg = self.forward_seg(batched_inputs['coco'])
-                losses.update(losses_seg)
+                if 'coco' in batched_inputs.keys(): losses.update(self.forward_seg(batched_inputs['coco']))
             if self.task_switch['retrieval'] or self.task_switch['captioning']:
-                
-                
+                                
                 if 'vlp' in batched_inputs.keys():
-                    batched_inputs_ = batched_inputs['vlp']
-                    losses_vlp = self.forward_vlp(batched_inputs_)
+                    losses.update(self.forward_vlp(batched_inputs['vlp']))
                 elif 'instp' in batched_inputs.keys():
-                    batched_inputs_ = batched_inputs['instp']
-                    losses_vlp = self.forward_vlp(batched_inputs_)
+                    losses.update(self.forward_vlp(batched_inputs['instp']))
                 elif 'instruction' in batched_inputs.keys():
-                    batched_inputs_= batched_inputs['instruction']
-                    losses_vlp = self.forward_llm(batched_inputs_)
+                    losses.update(self.forward_llm(batched_inputs['instruction']))
 
-                losses.update(losses_vlp)
             for k in list(losses.keys()):
                 if k in self.criterion.weight_dict:
                     losses[k] *= self.criterion.weight_dict[k]
@@ -454,21 +449,14 @@ class GeneralizedXdecoder(nn.Module):
         
         outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, target_queries=None, target_vlp=None, task='llm', extra=extra)
         
-        targets_llm = self.prepare_llm_targets(batched_inputs, outputs)
-
-        self.criterion.losses = self.losses['vlp'] # seg criterion losses
-        losses = self.criterion.forward_vlp(outputs, targets_llm, extra)
-        del outputs
-
-        # if self.task_switch['retrieval'] and self.retrieval_emsemble:
-        #     # compute backbone vlp.
-        #     v_emb = x_list['res5']
-        #     bs,nc,_,_ = v_emb.shape
-        #     v_emb = v_emb.reshape(bs,nc,-1)
-        #     v_emb = F.adaptive_avg_pool1d(v_emb, 1).reshape(bs,nc) @ self.backbone_proj
-        #     t_emb = torch.cat([x['caption_proj'] for x in targets_vlp], dim=0)
-        #     loss_contrast = image_text_contrastive_loss_queue(v_emb, t_emb, self.sem_seg_head.predictor.lang_encoder, None)
-        #     losses['loss_retrieval_backbone_0'] = loss_contrast
+        targets_llm = self.prepare_llm_targets(batched_inputs)
+        losses = self.llm(
+            input_ids=targets_llm["input_ids"],
+            attention_mask=targets_llm["attention_mask"],
+            labels=targets_llm["labels"],
+            images=self.img_to_lang(outputs['image_feature'][-1])
+        )
+               
         return losses
 
     def evaluate(self, batched_inputs):
@@ -796,33 +784,17 @@ class GeneralizedXdecoder(nn.Module):
             return target_vlp
 
     # LLM 
-    def prepare_llm_targets(self, batched_inputs, image_features):
+    def prepare_llm_targets(self, batched_inputs):
         input_ids = []
         attention_mask = []
         labels = []
-        for cnt, x in enumerate(batched_inputs):
+        for x in batched_inputs:
             captions = x['captions']
             randid = random.randint(0, len(captions)-1)
             input_ids += x['tokens']['input_ids'][randid:randid+1]
             attention_mask += x['tokens']['attention_mask'][randid:randid+1]
-            labels += x['tokens']['labels']
-
-        # input_ids = torch.stack(input_ids)
-        # attention_mask = torch.stack(attention_mask)
-        # labels = torch.stack(labels)
-        tokens = {"input_ids": input_ids, "attention_mask": attention_mask, 'labels': labels}
-        lang_results = self.sem_seg_head.predictor.lang_encoder.get_llm_token_embeddings(tokens, image_features, token=True)
-
-        target_vlp = []
-        for cnt, x in enumerate(batched_inputs):
-            target_dict = {}
-            target_dict["caption_tokens"] = lang_results['token_emb'][cnt:cnt+1]
-            target_dict["caption_proj"] = lang_results['class_emb'][cnt:cnt+1]
-            target_dict["caption_tokenids"] = lang_results['tokens']['input_ids'][cnt:cnt+1]
-            target_dict["caption_mask"] = lang_results['tokens']['attention_mask'][cnt:cnt+1]
-            target_dict["caption_label"] = lang_results['tokens']['labels'][cnt:cnt+1]              
-            target_vlp.append(target_dict)
-        return target_vlp
+            labels += x['tokens']['labels']        
+        return self.data_collator({"input_ids": input_ids, "attention_mask": attention_mask, 'labels': labels})
 
     
     def prepare_targets(self, batched_inputs, images):

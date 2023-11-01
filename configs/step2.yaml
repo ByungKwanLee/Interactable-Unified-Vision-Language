@@ -5,6 +5,15 @@
 # Written by Xueyan Zou (xueyan@cs.wisc.edu)
 # --------------------------------------------------------
 
+
+DATASETS:
+  TRAIN: ["instruction_train"] # instruction_train / instp_train / vlp_train
+  # open vocabulary segmentation evaluation.
+  TEST: ["refcocog_val_umd", "vlp_val"]
+  SIZE_DIVISIBILITY: 32
+  PROPOSAL_FILES_TRAIN: []
+
+
 # SAM Image Resolution
 IMG_RESOLUTION: 256
 NUM_GRIDS_HORIZON: 16
@@ -33,8 +42,7 @@ PORT: '36873'
 
 # misc
 LOADER:
-  JOINT: True
-  KEY_DATASET: 'coco'
+  JOINT: False
 
 ##################
 # Task settings
@@ -94,7 +102,7 @@ MODEL:
   DECODER:
     NAME: xdecoder
     TRANSFORMER_IN_FEATURE: "multi_scale_pixel_decoder"
-    MASK: True
+    MASK: False
     GROUNDING:
       ENABLED: True
       MAX_LEN: 5
@@ -159,7 +167,7 @@ COCO:
     MIN_SIZE_TRAIN_SAMPLING: 'choice'
     MIN_SIZE_TEST: 800
     MAX_SIZE_TEST: 1333
-    IMAGE_SIZE: 384
+    IMAGE_SIZE: 256
     MIN_SCALE: 0.1
     MAX_SCALE: 2.0
     DATASET_MAPPER_NAME: "coco_panoptic_lsj"
@@ -196,7 +204,7 @@ COCO:
 
 VLP:
   INPUT:
-    IMAGE_SIZE: 224
+    IMAGE_SIZE: 256
     DATASET_MAPPER_NAME: "vlpretrain"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
@@ -220,7 +228,7 @@ VLP:
 # Instruction FT Dataset
 INSTRUCT:
   INPUT:
-    IMAGE_SIZE: 384
+    IMAGE_SIZE: 256
     DATASET_MAPPER_NAME: "instruction_train"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
@@ -244,7 +252,7 @@ INSTRUCT:
   # Instruction FT Dataset
 INSTP:
   INPUT:
-    IMAGE_SIZE: 384
+    IMAGE_SIZE: 256
     DATASET_MAPPER_NAME: "instp_train"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
@@ -268,13 +276,6 @@ INSTP:
 INPUT:
   PIXEL_MEAN: [123.675, 116.280, 103.530]
   PIXEL_STD: [58.395, 57.120, 57.375]
-
-DATASETS:
-  TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "instruction_train"] # instruction_train / instp_train / vlp_train
-  # open vocabulary segmentation evaluation.
-  TEST: ["refcocog_val_umd", "vlp_val"]
-  SIZE_DIVISIBILITY: 32
-  PROPOSAL_FILES_TRAIN: []
 
 DATALOADER:
   FILTER_EMPTY_ANNOTATIONS: False

@@ -153,10 +153,13 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
 
         self.train_dataloaders = self.pipeline.get_dataloaders('train', is_evaluation=False)
 
-        self.max_length_dataset = 0
-        for dataset_name in self.train_dataloaders.dataset_names:
-            if self.max_length_dataset < len(getattr(self.train_dataloaders, dataset_name)):
-                self.max_length_dataset = len(getattr(self.train_dataloaders, dataset_name))
+        try:
+            self.min_length_dataset = 0
+            for dataset_name in self.train_dataloaders.dataset_names:
+                if self.min_length_dataset < len(getattr(self.train_dataloaders, dataset_name)):
+                    self.min_length_dataset = len(getattr(self.train_dataloaders, dataset_name))
+        except:
+            self.min_length_dataset = len(self.train_dataloaders)
 
 
         self.train_loss = LossMeter()
@@ -205,7 +208,7 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
         for epoch in range(num_epochs):
             if self.opt['rank'] == 0: print(f"Start epoch: {epoch} training.")
             
-            prog_bar = tqdm(enumerate(self.train_dataloaders), total=self.max_length_dataset, leave=True)
+            prog_bar = tqdm(enumerate(self.train_dataloaders), total=self.min_length_dataset, leave=True)
             for batch_idx, batch in prog_bar:
 
                 # update
@@ -222,11 +225,11 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
 
                 loss_list = [obj.val for _, obj in self.train_loss.losses.items()]
                 total_loss = sum(loss_list) / len(loss_list)
-                desc = f"|Epochs[{epoch}]|[{batch_idx+1}/{self.max_length_dataset}]|"
+                desc = f"|Epochs[{epoch}]|[{batch_idx+1}/{self.min_length_dataset}]|"
                 desc += f"LR[{', '.join([f'{val:.2e}' for _, val in last_lr.items()])}]|"
                 desc += f"Loss[{total_loss:.2f}]|"
                 prog_bar.set_description(desc, refresh=True)
-                if self.max_length_dataset == batch_idx + 1: break
+                if self.min_length_dataset == batch_idx + 1: break
 
             # synchronize
             if torch.cuda.is_available(): torch.cuda.synchronize()

@@ -50,21 +50,22 @@ from modeling.utils import configurable
 from utils.distributed import get_world_size
 
 class JointLoader(torchdata.IterableDataset):
-    def __init__(self, loaders, key_dataset):
+    def __init__(self, loaders):
         dataset_names = []
+        self.name_list = []
         for key, loader in loaders.items():
             name = "{}".format(key.split('_')[0])
+            self.name_list.append(name)
             setattr(self, name, loader)
             dataset_names += [name]
         self.dataset_names = dataset_names
-        self.key_dataset = key_dataset
     
     def __iter__(self):
         for batch in zip(*[getattr(self, name) for name in self.dataset_names]):
             yield {key: batch[i] for i, key in enumerate(self.dataset_names)}
 
     def __len__(self):
-        return len(getattr(self, self.key_dataset))
+        return len(getattr(self, self.name_list[0]))
 
 def filter_images_with_only_crowd_annotations(dataset_dicts, dataset_names):
     """
@@ -481,10 +482,7 @@ def build_train_dataloader(cfg, ):
             mapper = None
             loaders[dataset_name] = build_detection_train_loader(cfg, dataset_name=dataset_name, mapper=mapper)
 
-    if len(loaders) == 1 and not cfg['LOADER'].get('JOINT', False):
-        return list(loaders.values())[0]
-    else:
-        return JointLoader(loaders, key_dataset=cfg['LOADER'].get('KEY_DATASET', 'coco'))
+    return JointLoader(loaders)
 
     
 def build_evaluator(cfg, dataset_name, output_folder=None):

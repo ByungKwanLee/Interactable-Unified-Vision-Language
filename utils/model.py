@@ -49,7 +49,7 @@ def align_and_update_state_dicts(model_state_dict, ckpt_state_dict):
             else:
                 unmatched_log.append("*UNMATCHED* {}, Model Shape: {} <-> Ckpt Shape: {}".format(model_key, model_weight.shape, ckpt_weight.shape))
         else:
-            unloaded_log.append("*UNLOADED* {}, Model Shape: {}".format(model_key, model_weight.shape))
+            unloaded_log.append("*UNLOADED* {}".format(model_key))
             
     # if is_main_process():
     #     for info in matched_log:
