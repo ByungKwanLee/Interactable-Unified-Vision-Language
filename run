@@ -9,7 +9,7 @@
 # lang_batch=10
 
 # CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
-#             --conf_files configs/xdecoder/xdecoder_baseline.yaml \
+#             --conf_files configs/step1.yaml \
 #             --overrides \
 #             FP16 True \
 #             PORT $port \
@@ -53,7 +53,7 @@ image_bath=2
 lang_batch=10
 
 CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
-            --conf_files configs/xdecoder/xdecoder_baseline.yaml \
+            --conf_files configs/step1.yaml \
             --overrides \
             MODEL.TEXT.TOKENIZER clip\
             FP16 True \
@@ -88,3 +88,49 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
             WEIGHT True \
             RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
+
+
+# INSTRUCTION
+# GPU_DEVICE="0,1,2,3"
+# length=${#GPU_DEVICE}
+# n_gpu=$(((length+1)/2))
+# port=$(($RANDOM%10000+30000))
+# image_bath=2
+# lang_batch=10
+
+# CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
+#             --conf_files configs/step2.yaml \
+#             --overrides \
+#             MODEL.TEXT.TOKENIZER clip\
+#             FP16 True \
+#             PORT $port \
+#             SAVE_DIR ckpt/ \
+#             MODEL.DECODER.HIDDEN_DIM 512 \
+#             MODEL.ENCODER.CONVS_DIM 512 \
+#             MODEL.ENCODER.MASK_DIM 512 \
+#             MODEL.DECODER.CAPTIONING.ENABLED True \
+#             MODEL.DECODER.RETRIEVAL.ENABLED True \
+#             MODEL.DECODER.GROUNDING.ENABLED True \
+#             MODEL.DECODER.CAPTIONING_WEIGHT 8 \
+#             MODEL.DECODER.RETRIEVAL_WEIGHT 8 \
+#             MODEL.DECODER.TOP_CAPTIONING_LAYERS 3 \
+#             MODEL.DECODER.TOP_RETRIEVAL_LAYERS 3 \
+#             MODEL.DECODER.TOP_GROUNDING_LAYERS 6 \
+#             MODEL.DECODER.GROUNDING.TEXT_WEIGHT 2.0 \
+#             MODEL.DECODER.GROUNDING.CLASS_WEIGHT 0.5 \
+#             COCO.INPUT.IMAGE_SIZE 256 \
+#             COCO.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
+#             COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
+#             COCO.DATALOADER.NUM_WORKERS 20 \
+#             INSTRUCT.INPUT.IMAGE_SIZE 256 \
+#             INSTRUCT.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
+#             INSTRUCT.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
+#             INSTRUCT.DATALOADER.NUM_WORKERS 20 \
+#             INSTRUCT.TEST.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
+#             COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
+#             ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
+#             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
+#             VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
+#             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
+#             WEIGHT True \
+#             RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt

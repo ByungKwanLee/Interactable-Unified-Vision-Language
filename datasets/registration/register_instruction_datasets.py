@@ -57,7 +57,7 @@ def load_pretrain_data(arrow_root, meta, name, pretrain_arrows):
             captions = arr['caption'][i].as_py()
             image_id = arr['image_id'][i].as_py()
             if not isinstance(image_id, int):
-                image_id = int(image_id.split('.')[0])
+                image_id = int(image_id.split('/')[-1].split('.')[0])
 
             if 'val' in name:
                 ret.append( {

@@ -34,7 +34,8 @@ def build_tokenizer(config_encoder):
             'PRETRAINED_TOKENIZER', 'openai/clip-vit-base-patch32'
         )
         tokenizer = CLIPTokenizerFast.from_pretrained(pretrained_tokenizer, from_slow=True)
-    else:
+        
+    elif config_encoder['TOKENIZER'] == 'vicuna':
         pretrained_tokenizer = config_encoder.get(
             'PRETRAINED_TOKENIZER', 'lmsys/vicuna-7b-v1.5'
         )

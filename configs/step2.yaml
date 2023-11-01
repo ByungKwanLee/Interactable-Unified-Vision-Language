@@ -16,15 +16,17 @@ RESUME: false
 WEIGHT: false
 RESET_DATA_LOADER: false
 RESUME_FROM: ''
-EVAL_AT_START: False
+PYLEARN_MODEL: '' # model resume when evaluation
+DONT_LOAD_MODEL: true
+EVAL_AT_START: false
 
 # Logging and Debug
-WANDB: True
+WANDB: true
 LOG_EVERY: 100
-FIND_UNUSED_PARAMETERS: True # LBK EDIT
+FIND_UNUSED_PARAMETERS: true
 
 # Speed up training
-FP16: false
+FP16: true
 PORT: '36873'
 
 # misc
@@ -47,7 +49,7 @@ MODEL:
   TEXT:
     ARCH: vlpencoder
     NAME: transformer
-    TOKENIZER: clip
+    TOKENIZER: vicuna
     WIDTH: 512
     HEADS: 8
     LAYERS: 12 # 6
@@ -84,6 +86,7 @@ MODEL:
     MASK_DIM: 512
     NORM: "GN"
     IN_FEATURES: ["res2", "res3", "res4", "res5"]
+    DEFORMABLE_TRANSFORMER_ENCODER_IN_FEATURES: ["res3", "res4", "res5"]
     COMMON_STRIDE: 4
     TRANSFORMER_ENC_LAYERS: 6
   DECODER:
@@ -154,7 +157,7 @@ COCO:
     MIN_SIZE_TRAIN_SAMPLING: 'choice'
     MIN_SIZE_TEST: 800
     MAX_SIZE_TEST: 1333
-    IMAGE_SIZE: 1024
+    IMAGE_SIZE: 384
     MIN_SCALE: 0.1
     MAX_SCALE: 2.0
     DATASET_MAPPER_NAME: "coco_panoptic_lsj"
@@ -204,6 +207,54 @@ VLP:
     BATCH_SIZE_TOTAL: 2
     BATCH_SIZE_PER_GPU: 1
   TEST:
+    BATCH_SIZE_TOTAL: 8
+  DATALOADER:
+    FILTER_EMPTY_ANNOTATIONS: False
+    NUM_WORKERS: 16
+    LOAD_PROPOSALS: False
+    SAMPLER_TRAIN: "TrainingSampler"
+    ASPECT_RATIO_GROUPING: True
+
+# Instruction FT Dataset
+INSTRUCT:
+  INPUT:
+    IMAGE_SIZE: 384
+    DATASET_MAPPER_NAME: "instruction_train"
+    IGNORE_VALUE: 255
+    COLOR_AUG_SSD: False
+    SIZE_DIVISIBILITY: 32
+    MASK_FORMAT: "polygon"
+    FORMAT: "RGB"
+    CROP:
+      ENABLED: True
+  TRAIN:
+    BATCH_SIZE_TOTAL: 2
+    BATCH_SIZE_PER_GPU: 1
+  TEST:
+    BATCH_SIZE_TOTAL: 3
+  DATALOADER:
+    FILTER_EMPTY_ANNOTATIONS: False
+    NUM_WORKERS: 16
+    LOAD_PROPOSALS: False
+    SAMPLER_TRAIN: "TrainingSampler"
+    ASPECT_RATIO_GROUPING: True
+
+  # Instruction FT Dataset
+INSTP:
+  INPUT:
+    IMAGE_SIZE: 384
+    DATASET_MAPPER_NAME: "instp_train"
+    IGNORE_VALUE: 255
+    COLOR_AUG_SSD: False
+    SIZE_DIVISIBILITY: 32
+    MASK_FORMAT: "polygon"
+    FORMAT: "RGB"
+    CROP:
+      ENABLED: True
+  TRAIN:
+    BATCH_SIZE_TOTAL: 2
+    BATCH_SIZE_PER_GPU: 1
+  TEST:
     BATCH_SIZE_TOTAL: 3
   DATALOADER:
     FILTER_EMPTY_ANNOTATIONS: False
@@ -217,13 +268,9 @@ INPUT:
   PIXEL_STD: [58.395, 57.120, 57.375]
 
 DATASETS:
-  TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "vlp_train"]
+  TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "instruction_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  # TEST: ["ade20k_panoptic_val"]
-  TEST: ["coco_2017_val_panoptic_with_sem_seg", "vlp_captioning_val", "refcocog_val_umd", "vlp_val", "ade20k_panoptic_val"]
-  # TEST: ["ade20k_panoptic_val", "ade20k_full_sem_seg_val", "sunrgbd_37_val_seg", "scannet_21_val_seg", "scannet_21_panoptic_val", "scannet_41_val_seg", "cityscapes_fine_panoptic_val", "cityscapes_fine_instance_seg_val", "cityscapes_fine_sem_seg_val", "bdd10k_val_sem_seg", "bdd10k_40_panoptic_val"]
-  # Supervised metrics evaluation.
-  # TEST: ["vlp_captioning_val", "refcocog_val_umd", "vlp_val"]
+  TEST: ["refcocog_val_umd", "vlp_val"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
@@ -298,7 +345,7 @@ REF:
     SAMPLER_TRAIN: "TrainingSampler"
     ASPECT_RATIO_GROUPING: False
   TEST:
-    BATCH_SIZE_TOTAL: 1
+    BATCH_SIZE_TOTAL: 8
 
 SUN:
   INPUT:

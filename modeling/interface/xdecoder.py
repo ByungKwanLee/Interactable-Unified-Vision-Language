@@ -225,6 +225,7 @@ class XDecoder(nn.Module):
         query_embed[:-1, ...] += visual_queries 
         output[:-1, ...] += visual_queries 
 
+        predictions_image_feat = []
         predictions_class = []
         predictions_mask = []
         predictions_bbox = []
@@ -251,6 +252,15 @@ class XDecoder(nn.Module):
             self_tgt_mask = pad_tgt_mask
             output = torch.cat((output, output[:-1]), dim=0)
             query_embed = torch.cat((query_embed, query_embed[:-1]), dim=0) # also pad language embdding to fix embedding
+        elif self.training and task == 'llm':
+            self_tgt_mask = self.self_attn_mask[:,:self.num_queries,:self.num_queries].repeat(output.shape[1]*self.num_heads, 1, 1)
+            # initialize with negative attention at the beginning.
+            pad_tgt_mask = torch.ones((1, self.num_queries + (self.num_queries-1), self.num_queries + (self.num_queries-1)), device=self_tgt_mask.device).bool().repeat(output.shape[1]*self.num_heads, 1, 1)
+            pad_tgt_mask[:,:self.num_queries,:self.num_queries] = self_tgt_mask
+            pad_tgt_mask[:,self.num_queries:,self.num_queries:] = False # grounding tokens could attend with eatch other
+            self_tgt_mask = pad_tgt_mask
+            output = torch.cat((output, output[:-1]), dim=0)
+            query_embed = torch.cat((query_embed, query_embed[:-1]), dim=0) # also pad language embdding to fix embedding    
         else:
             self_tgt_mask = self.self_attn_mask[:,:self.num_queries,:self.num_queries].repeat(output.shape[1]*self.num_heads, 1, 1)
 
@@ -262,12 +272,16 @@ class XDecoder(nn.Module):
         predictions_bbox.append(results["outputs_bbox"])
         predictions_caption.append(results["outputs_caption"])
         predictions_captioning.append(results["outputs_captionting"])
+
+        if task == 'llm':
+            decoder_output = self.decoder_norm(output)
+            predictions_image_feat.append(decoder_output[:self.num_queries].transpose(0, 1))
         
         for i in range(self.num_layers):
             level_index = i % self.num_feature_levels
             attn_mask[torch.where(attn_mask.sum(-1) == attn_mask.shape[-1])] = False
 
-            if self.training and task == 'vlp' and self.task_switch['captioning']:
+            if ((self.training and task == 'vlp' and self.task_switch['captioning']) or (task == 'llm')):
                 attn_mask = torch.cat((attn_mask, torch.zeros_like(attn_mask[:, :self.contxt_len, :])), dim=1)
             # attention: cross-attention first
             output, avg_attn = self.transformer_cross_attention_layers[i](
@@ -296,7 +310,7 @@ class XDecoder(nn.Module):
                 _grounding_tokens = output[-len(_grounding_tokens):]
                 output = output[:-len(_grounding_tokens)]
                 query_embed = query_embed[:-len(_grounding_tokens)]
-
+                
             results = self.forward_prediction_heads(output, mask_features, attn_mask_target_size=size_list[(i + 1) % self.num_feature_levels], layer_id=i, task=task)
             attn_mask = results["attn_mask"]
             predictions_class.append(results["outputs_class"])
@@ -304,12 +318,19 @@ class XDecoder(nn.Module):
             predictions_bbox.append(results["outputs_bbox"])
             predictions_caption.append(results["outputs_caption"])
             predictions_captioning.append(results["outputs_captionting"])
+            
+            if task == 'llm':
+                decoder_output = self.decoder_norm(output)
+                predictions_image_feat.append(decoder_output[:self.num_queries].transpose(0, 1))
 
         assert len(predictions_class) == self.num_layers + 1
         if task == 'vlp':
             out = {'pred_captionings': predictions_captioning[-1], 
                    'pred_captions': predictions_caption[-1], 
                    'aux_outputs': [{'pred_captionings': x, 'pred_captions': y } for x, y in zip(predictions_captioning[:-1], predictions_caption[:-1])]}
+            return out
+        elif task == 'llm':
+            out = {'image_feature': predictions_image_feat}
             return out
         else:
             out = {

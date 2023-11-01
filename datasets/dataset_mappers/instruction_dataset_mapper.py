@@ -107,7 +107,7 @@ class InstructionDatasetMapper:
         tfm_gens = build_transform_gen(cfg, is_train)
 
         tokenizer = build_tokenizer(cfg['MODEL']['TEXT'])
-        max_token_num = cfg['MODEL']['TEXT']['CONTEXT_LENGTH']
+        max_token_num = 2048
         device = cfg['device']
 
         ret = {
@@ -167,10 +167,9 @@ class InstructionDatasetMapper:
         tokenizer: transformers.PreTrainedTokenizer,
         has_image: bool = False
     ) -> Dict:
-        conv = conversation_lib.default_conversation.copy()
+        conv = conversation_lib.conv_vicuna_v1.copy()
         roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
 
-        emp_conv = []
         # Apply prompt templates
         conversations = []
         for i, source in enumerate(sources):
@@ -228,7 +227,11 @@ class InstructionDatasetMapper:
 
                 target[cur_len : cur_len + instruction_len] = IGNORE_INDEX
 
-                cur_len += round_len
+                if i == 0:
+                    cur_len += round_len
+                else:
+                    cur_len += round_len - 1
+                    
             target[cur_len:] = IGNORE_INDEX
 
             if cur_len < self.max_token_num:
@@ -242,10 +245,10 @@ class InstructionDatasetMapper:
         attention_masks = (target != -100).type(torch.float32)
 
         # Pad to length 256
-        max_length = 256
-        input_ids = F.pad(input_ids, (0, max_length - input_ids.size(-1)))
-        targets = F.pad(targets, (0, max_length - targets.size(-1)), value=IGNORE_INDEX)
-        attention_masks = F.pad(attention_masks, (0, max_length - attention_masks.size(-1)))
+        # max_length = 256
+        # input_ids = F.pad(input_ids, (0, max_length - input_ids.size(-1)))
+        # targets = F.pad(targets, (0, max_length - targets.size(-1)), value=IGNORE_INDEX)
+        # attention_masks = F.pad(attention_masks, (0, max_length - attention_masks.size(-1)))
 
         return dict(
             input_ids=input_ids,
