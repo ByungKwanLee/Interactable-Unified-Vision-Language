@@ -121,23 +121,6 @@ class UtilsTrainer(DistributedTrainer):
                                 'train_params': self.train_params,}
             torch.save(trainer_state, save_path)
 
-        num_retries = 0
-        while num_retries < 3:
-            try:
-                random_state_path = os.path.join(save_dir, f"random_state_rank_{self.opt['rank']:04d}")
-                random_state = {'random': random.getstate(),
-                                'numpy_random': np.random.get_state(),
-                                'torch_random': torch.get_rng_state(),
-                                'torch_cuda_random': torch.cuda.get_rng_state(device=self.opt['device']) if self.opt['CUDA'] else None
-                                }
-                torch.save(random_state, random_state_path)
-                num_retries = 3
-            except Exception as err:
-                num_retries += 1
-                logger.warning(err)
-                logger.warning("Failed to save checkpoint at retry {}, waiting for 30s to retry.".format(num_retries))
-                time.sleep(30)
-
         if self.opt['rank'] == 0:
             for module_name in self.model_names:
                 module_save_dir = os.path.join(save_dir, module_name)
@@ -150,11 +133,10 @@ class UtilsTrainer(DistributedTrainer):
             with open(os.path.join(self.opt['SAVE_DIR'], f"resume_checkpoint.json"), 'w', encoding='utf-8') as f:
                 json.dump(checkpoint_location, f, cls=JSONEncoder)
 
-    def load_weight(self, checkpoint_path=None, must_exist=False):
+    def load_weight(self, checkpoint_path=None):
         self.load_model(checkpoint_path)
-        # logger.warning(f'Load weights from {checkpoint_path}...')
 
-    def load_checkpoint(self, checkpoint_path=None, must_exist=False):
+    def load_checkpoint(self, checkpoint_path=None):
         logger.warning(f'Resuming checkpoint from {checkpoint_path}...')
 
         for model_name in self.model_names:
@@ -176,16 +158,5 @@ class UtilsTrainer(DistributedTrainer):
         trainer_state = torch.load(load_path, map_location='cpu')
         self.train_loss = trainer_state['train_loss']
         self.train_params = trainer_state['train_params']
-
-        random_state_path = os.path.join(checkpoint_path, f"random_state_rank_{self.opt['rank']:04d}")
-        if os.path.exists(random_state_path):
-            random_state = torch.load(random_state_path, map_location='cpu')
-            random.setstate(random_state['random'])
-            np.random.set_state(random_state['numpy_random'])
-            torch.set_rng_state(random_state['torch_random'])
-            if self.opt['CUDA']:
-                torch.cuda.set_rng_state(random_state['torch_cuda_random'], device=self.opt['device'])
-        else:
-            logging.warning("Could not find random state for rank {}".format(self.opt['rank']))
 
         logger.warning(f'Finished loading checkpoint from {checkpoint_path}.')

@@ -17,8 +17,6 @@ WEIGHT: false
 RESET_DATA_LOADER: false
 RESUME_FROM: ''
 PYLEARN_MODEL: '' # model resume when evaluation
-DONT_LOAD_MODEL: true
-EVAL_AT_START: false
 
 # Logging and Debug
 WANDB: true

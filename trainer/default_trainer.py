@@ -192,9 +192,9 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
         self._initialize_ddp()
 
         if self.opt.get('WEIGHT', False):
-            self.load_weight(self.opt['RESUME_FROM'], must_exist=True)
+            self.load_weight(self.opt['RESUME_FROM'])
         if self.opt.get('RESUME', False):
-            self.load_checkpoint(self.opt['RESUME_FROM'], must_exist=True)
+            self.load_checkpoint(self.opt['RESUME_FROM'])
 
         ######################
         # Start the main loop
@@ -228,11 +228,6 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
         self.init_train()
         current_optim_steps = self._get_and_validate_current_optim_steps()
         num_epochs = self.opt['SOLVER']['MAX_NUM_EPOCHS']
-
-        if self.opt.get('EVAL_AT_START', False):
-            results = self._eval_on_set()
-            if self.opt['rank'] == 0 and self.opt['WANDB']:
-                wandb.log(results)
 
         max_length_dataset = 0
         for dataset_name in self.train_dataloaders.dataset_names:
