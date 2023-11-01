@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
 # VLP
-# GPU_DEVICE="0,1,2,3,4,5,6,7"
+# GPU_DEVICE="0,1,2,3"
 # length=${#GPU_DEVICE}
 # port=$(($RANDOM%10000+30000))
 # n_gpu=$(((length+1)/2))
-# image_bath=1
-# lang_batch=1
+# image_bath=2
+# lang_batch=10
 
 # CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
-#             --conf_files configs/xdecoder/focalt_unicl_lang.yaml \
+#             --conf_files configs/xdecoder/xdecoder_baseline.yaml \
 #             --overrides \
 #             FP16 True \
 #             PORT $port \
@@ -39,13 +39,13 @@
 #             VLP.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
 #             VLP.DATALOADER.NUM_WORKERS 2 \
 #             ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
-#             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * lang_bath)) \
+#             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
 #             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
 #             WEIGHT True \
 #             RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
 
 # INSTP
-GPU_DEVICE="2,3,4,5,6,7"
+GPU_DEVICE="0,1,2,3"
 length=${#GPU_DEVICE}
 n_gpu=$(((length+1)/2))
 port=$(($RANDOM%10000+30000))

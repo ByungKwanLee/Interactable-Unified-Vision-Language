@@ -26,7 +26,7 @@ LOG_EVERY: 100
 FIND_UNUSED_PARAMETERS: true
 
 # Speed up training
-FP16: false
+FP16: true
 PORT: '36873'
 
 # misc
@@ -268,7 +268,7 @@ INPUT:
   PIXEL_STD: [58.395, 57.120, 57.375]
 
 DATASETS:
-  TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "instp_train"] # instruction_train / instp_train / vlp_train
+  TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "vlp_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
   TEST: ["refcocog_val_umd", "vlp_val"]
   SIZE_DIVISIBILITY: 32
@@ -390,7 +390,7 @@ BDD:
     SAMPLER_TRAIN: "TrainingSampler"
     ASPECT_RATIO_GROUPING: False
   TEST:
-    BATCH_SIZE_TOTAL: 8w
+    BATCH_SIZE_TOTAL: 8
 
 CITY:
   INPUT:
