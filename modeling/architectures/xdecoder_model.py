@@ -38,6 +38,8 @@ class GeneralizedXdecoder(nn.Module):
     def __init__(
         self,
         *,
+        img_resolution: int,
+        num_grids_horizon: int,
         sem_seg_head: nn.Module,
         criterion: nn.Module,
         losses: dict,
@@ -60,37 +62,18 @@ class GeneralizedXdecoder(nn.Module):
         backbone_dim: int,
         dim_proj: int,
     ):
-        """
-        Args:
-            sem_seg_head: a module that predicts semantic segmentation from backbone features
-            criterion: a module that defines the loss
-            num_queries: int, number of queries
-            object_mask_threshold: float, threshold to filter query based on classification score
-                for panoptic segmentation inference
-            overlap_threshold: overlap threshold used in general inference for panoptic segmentation
-            metadata: dataset meta, get `thing` and `stuff` category names for panoptic
-                segmentation inference
-            sem_seg_postprocess_before_inference: whether to resize the prediction back
-                to original input size before semantic segmentation inference or after.
-                For high-resolution dataset like Mapillary, resizing predictions before
-                inference will cause OOM error.
-            pixel_mean, pixel_std: list or tuple with #channels element, representing
-                the per-channel mean and std to be used to normalize the input image
-            semantic_on: bool, whether to output semantic segmentation prediction
-            instance_on: bool, whether to output instance segmentation prediction
-            panoptic_on: bool, whether to output panoptic segmentation prediction
-            test_topk_per_image: int, instance segmentation parameter, keep topk instances per image
-        """
+
         super().__init__()
 
         # LBK build SAM model
         import sys
         sys.path.append('../../sam')
         from sam import build_sam
-        self.img_resolution = 256
+        self.img_resolution = img_resolution
+        self.num_grids_horizon = num_grids_horizon
         sam = build_sam.sam_model_registry['vit_b'](checkpoint='sam/ckpt/sam_vit_b_01ec64.pth', custom_img_size=self.img_resolution)
         from sam.utils.amg import build_all_layer_point_grids
-        self.input_point = torch.as_tensor(build_all_layer_point_grids(16, 0, 1)[0] * self.img_resolution, dtype=torch.int64).cuda()
+        self.input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * self.img_resolution, dtype=torch.int64).cuda()
         self.input_label = torch.tensor([1 for _ in range(self.input_point.shape[0])]).cuda()
 
         # LBK build LLM
@@ -226,6 +209,8 @@ class GeneralizedXdecoder(nn.Module):
         phrase_prob = dec_cfg['CAPTION'].get('PHRASE_PROB', 0.5)
 
         return {
+            "img_resolution": cfg['IMG_RESOLUTION'],
+            "num_grids_horizon": cfg['NUM_GRIDS_HORIZON'],
             "sem_seg_head": sem_seg_head,
             "criterion": criterion,
             "losses": losses,

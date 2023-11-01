@@ -270,7 +270,7 @@ INPUT:
   PIXEL_STD: [58.395, 57.120, 57.375]
 
 DATASETS:
-  TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "instp_train"] # instruction_train / instp_train / vlp_train
+  TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "vlp_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
   TEST: ["refcocog_val_umd", "vlp_val"]
   SIZE_DIVISIBILITY: 32

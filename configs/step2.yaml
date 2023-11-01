@@ -5,10 +5,14 @@
 # Written by Xueyan Zou (xueyan@cs.wisc.edu)
 # --------------------------------------------------------
 
+# SAM Image Resolution
+IMG_RESOLUTION: 256
+NUM_GRIDS_HORIZON: 16
+
 # Define Test/Trainer/Saving
 PIPELINE: XDecoderPipeline
 TRAINER: xdecoder
-SAVE_DIR: '../../data/output/test'
+SAVE_DIR: 'ckpt'
 base_path: "./"
 
 # Resume Logistic

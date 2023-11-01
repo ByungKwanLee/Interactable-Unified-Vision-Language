@@ -163,7 +163,7 @@ class XDecoder_Trainer(DefaultTrainer):
             self.optimizers[_module_name].zero_grad()
 
         num_epoch = self.opt['SOLVER']['MAX_NUM_EPOCHS']
-        cfg_solver['MAX_ITER'] = num_epoch * self.train_params['updates_per_epoch']
+        cfg_solver['MAX_ITER'] = num_epoch * self.max_length_dataset
         cfg_solver['STEPS'] = [int(x*cfg_solver['MAX_ITER']) for x in cfg_solver['STEPS']]
         logger.info(f"Calculate MAX_ITER @ {cfg_solver['MAX_ITER']} and STEPS @ {cfg_solver['STEPS']}")
 

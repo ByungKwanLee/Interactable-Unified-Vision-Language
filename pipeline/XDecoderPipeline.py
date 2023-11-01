@@ -75,9 +75,7 @@ class XDecoderPipeline:
                 
             # temp solution for lr scheduler
             steps_total = len(self.train_loader)
-            steps_acc = self._opt['GRADIENT_ACCUMULATE_STEP']
-            steps_update = steps_total // steps_acc
-            self._opt["LR_SCHEDULER_PARAMS"]["steps_update_per_epoch"] = steps_update
+            self._opt["LR_SCHEDULER_PARAMS"]["steps_update_per_epoch"] = steps_total
         return dataloader
 
     @staticmethod

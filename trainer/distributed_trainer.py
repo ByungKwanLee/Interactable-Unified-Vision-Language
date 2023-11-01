@@ -52,10 +52,8 @@ class DistributedTrainer:
         if self.opt['rank'] == 0: os.makedirs(self.save_folder, exist_ok=True)
 
         # ddp: log stats and update learning rate
-        self.grad_acc_steps = self.opt['GRADIENT_ACCUMULATE_STEP']
         logger.info(f"Base learning rate: {self.opt['SOLVER']['BASE_LR']}")
         logger.info(f"Number of GPUs: {self.opt['world_size']}")
-        logger.info(f"Gradient accumulation steps: {self.grad_acc_steps}")
 
         if self.opt['world_size'] > 1:
             add_hook()
@@ -66,7 +64,6 @@ class DistributedTrainer:
         # Fill in the default values for required keywords
         self.opt['CUDA'] = self.opt.get('CUDA', True) and torch.cuda.is_available()
         self.opt['FP16'] = self.opt.get('FP16', False) and self.opt['CUDA']
-        self.opt['GRADIENT_ACCUMULATE_STEP'] = int(self.opt.get('GRADIENT_ACCUMULATE_STEP', 1))
         self.opt['EVAL_PER_UPDATE_NUM'] = int(self.opt.get('EVAL_PER_UPDATE_NUM', 0))
         self.opt['LR_SCHEDULER_PARAMS'] = self.opt.get('LR_SCHEDULER_PARAMS', {})
 

@@ -40,9 +40,6 @@ class UtilsTrainer(DistributedTrainer):
     def __init__(self, opt):
         super().__init__(opt)
 
-    def is_gradient_accumulation_boundary(self):
-        return (self.train_params['num_updates'] + 1) % self.grad_acc_steps == 0
-
     def get_batch_size(self, batch, module_name='default'):
         if hasattr(self.raw_models[module_name], 'get_batch_size'):
             if callable(self.raw_models[module_name].get_batch_size):
@@ -63,30 +60,14 @@ class UtilsTrainer(DistributedTrainer):
                                                         output_device=self.opt['local_rank'],
                                                         find_unused_parameters=self.opt.get('FIND_UNUSED_PARAMETERS', True))
 
-    def _get_and_validate_current_optim_steps(self):
-        current_optim_steps = set([self.train_params['optim_steps'][module_name] for module_name in self.model_names])
-        assert len(current_optim_steps) == 1, f"All modules should be at the same optim step: {self.train_params['optim_steps']}"
-        return next(iter(current_optim_steps))
-
     def load_model(self, load_path):
         for module_name in self.model_names:
             self.raw_models[module_name] = self.raw_models[module_name].from_pretrained(load_path)
             self.raw_models[module_name].to(self.opt['device'])
 
-    def save_checkpoint(self, tag):
-        tag = str(tag).zfill(8)
-
-        resume_epoch_idx = self.train_params['current_epoch_idx']
-        resume_batch_idx = self.train_params['current_batch_idx'] + 1
-
-        if resume_batch_idx == self.train_params['updates_per_epoch']:
-            self.train_params['start_batch_idx'] = 0
-            self.train_params['start_epoch_idx'] = resume_epoch_idx + 1
-        else:
-            self.train_params['start_batch_idx'] = resume_batch_idx
-            self.train_params['start_epoch_idx'] = resume_epoch_idx
+    def save_checkpoint(self):
         
-        save_dir = os.path.join(self.save_folder, tag)
+        save_dir = self.save_folder
 
         if self.opt['world_size'] > 1:
             torch.distributed.barrier()
@@ -116,22 +97,9 @@ class UtilsTrainer(DistributedTrainer):
                 torch.save(state, save_path)
 
         if self.opt['rank'] == 0:
-            save_path = os.path.join(save_dir, 'trainer_states.pt')
-            trainer_state = {'train_loss': self.train_loss,
-                                'train_params': self.train_params,}
-            torch.save(trainer_state, save_path)
-
-        if self.opt['rank'] == 0:
             for module_name in self.model_names:
                 module_save_dir = os.path.join(save_dir, module_name)
                 self.raw_models[module_name].save_pretrained(module_save_dir)
-
-        if self.opt['rank'] == 0:
-            # save the latest checkpoint location to json file
-            checkpoint_location = {'checkpoint_tag': tag,
-                                    'checkpoint_path': os.path.relpath(self.save_folder, start=self.opt['SAVE_DIR'])}
-            with open(os.path.join(self.opt['SAVE_DIR'], f"resume_checkpoint.json"), 'w', encoding='utf-8') as f:
-                json.dump(checkpoint_location, f, cls=JSONEncoder)
 
     def load_weight(self, checkpoint_path=None):
         self.load_model(checkpoint_path)
@@ -157,6 +125,5 @@ class UtilsTrainer(DistributedTrainer):
         load_path = os.path.join(checkpoint_path, 'trainer_states.pt')
         trainer_state = torch.load(load_path, map_location='cpu')
         self.train_loss = trainer_state['train_loss']
-        self.train_params = trainer_state['train_params']
 
         logger.warning(f'Finished loading checkpoint from {checkpoint_path}.')
