@@ -13,7 +13,7 @@
 //             "console": "integratedTerminal",
 //             "justMyCode": false,
 //             "env": {"CUDA_VISIBLE_DEVICES": "0"},
-//             "args": ["train", "--conf_files", "configs/step1.yaml", "--overrides", "FP16", "True", "WANDB", "False",
+//             "args": ["train", "--conf_files", "configs/step1.yaml", "--overrides", "FP16", "True", "WANDB", "False", "PORT", "36000",
 //             "COCO.INPUT.IMAGE_SIZE", "256", 
 //             "VLP.INPUT.IMAGE_SIZE", "256",
 //             "MODEL.DECODER.HIDDEN_DIM", "512", 
@@ -49,57 +49,6 @@
 
 
 // INSTP
-{
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Python: Current File",
-            "type": "python",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "env": {"CUDA_VISIBLE_DEVICES": "2"},
-            "args": ["train", "--conf_files", "configs/step1.yaml", "--overrides", "FP16", "True", "WANDB", "False",
-            "MODEL.DECODER.HIDDEN_DIM", "512", 
-            "MODEL.ENCODER.CONVS_DIM", "512", 
-            "MODEL.ENCODER.MASK_DIM", "512", 
-            "MODEL.DECODER.CAPTIONING.ENABLED", "True", 
-            "MODEL.DECODER.RETRIEVAL.ENABLED", "True", 
-            "MODEL.DECODER.GROUNDING.ENABLED", "True", 
-            "MODEL.DECODER.CAPTIONING_WEIGHT", "8", 
-            "MODEL.DECODER.RETRIEVAL_WEIGHT", "8", 
-            "MODEL.DECODER.TOP_CAPTIONING_LAYERS", "3", 
-            "MODEL.DECODER.TOP_RETRIEVAL_LAYERS", "3", 
-            "MODEL.DECODER.TOP_GROUNDING_LAYERS", "6", 
-            "MODEL.DECODER.GROUNDING.TEXT_WEIGHT", "2.0", 
-            "MODEL.DECODER.GROUNDING.CLASS_WEIGHT", "0.5", 
-            "COCO.INPUT.IMAGE_SIZE", "256", 
-            "COCO.TEST.BATCH_SIZE_TOTAL", "2", 
-            "COCO.TRAIN.BATCH_SIZE_TOTAL", "2", 
-            "COCO.TRAIN.BATCH_SIZE_PER_GPU", "2", 
-            "INSTP.INPUT.IMAGE_SIZE", "256",
-            "INSTP.TEST.BATCH_SIZE_TOTAL", "12", 
-            "INSTP.TRAIN.BATCH_SIZE_TOTAL", "2", 
-            "INSTP.TRAIN.BATCH_SIZE_PER_GPU", "2", 
-            "INSTP.DATALOADER.NUM_WORKERS", "32", 
-            "ADE20K.TEST.BATCH_SIZE_TOTAL", "2", 
-            "REF.TEST.BATCH_SIZE_TOTAL", "2", 
-            "VLP.TEST.BATCH_SIZE_TOTAL", "2",
-            "SOLVER.LR_MULTIPLIER.lang_encoder", "0.1", 
-            "WEIGHT", "True", 
-            "RESUME_FROM", 
-            "/mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt"],
-            
-        }
-    ]
-}
-
-
-// INSTRUCTION
 // {
 //     // Use IntelliSense to learn about possible attributes.
 //     // Hover to view descriptions of existing attributes.
@@ -113,8 +62,8 @@
 //             "program": "${file}",
 //             "console": "integratedTerminal",
 //             "justMyCode": false,
-//             "env": {"CUDA_VISIBLE_DEVICES": "0"},
-//             "args": ["train", "--conf_files", "configs/step2.yaml", "--overrides", "FP16", "True", "WANDB", "False",
+//             "env": {"CUDA_VISIBLE_DEVICES": "2"},
+//             "args": ["train", "--conf_files", "configs/step1.yaml", "--overrides", "FP16", "True", "WANDB", "False", "PORT", "36000",
 //             "MODEL.DECODER.HIDDEN_DIM", "512", 
 //             "MODEL.ENCODER.CONVS_DIM", "512", 
 //             "MODEL.ENCODER.MASK_DIM", "512", 
@@ -132,11 +81,11 @@
 //             "COCO.TEST.BATCH_SIZE_TOTAL", "2", 
 //             "COCO.TRAIN.BATCH_SIZE_TOTAL", "2", 
 //             "COCO.TRAIN.BATCH_SIZE_PER_GPU", "2", 
-//             "INSTRUCT.INPUT.IMAGE_SIZE", "256",
-//             "INSTRUCT.TEST.BATCH_SIZE_TOTAL", "12", 
-//             "INSTRUCT.TRAIN.BATCH_SIZE_TOTAL", "2", 
-//             "INSTRUCT.TRAIN.BATCH_SIZE_PER_GPU", "2", 
-//             "INSTRUCT.DATALOADER.NUM_WORKERS", "32", 
+//             "INSTP.INPUT.IMAGE_SIZE", "256",
+//             "INSTP.TEST.BATCH_SIZE_TOTAL", "12", 
+//             "INSTP.TRAIN.BATCH_SIZE_TOTAL", "2", 
+//             "INSTP.TRAIN.BATCH_SIZE_PER_GPU", "2", 
+//             "INSTP.DATALOADER.NUM_WORKERS", "32", 
 //             "ADE20K.TEST.BATCH_SIZE_TOTAL", "2", 
 //             "REF.TEST.BATCH_SIZE_TOTAL", "2", 
 //             "VLP.TEST.BATCH_SIZE_TOTAL", "2",
@@ -148,3 +97,54 @@
 //         }
 //     ]
 // }
+
+
+// INSTRUCTION
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {"CUDA_VISIBLE_DEVICES": "0"},
+            "args": ["train", "--conf_files", "configs/step2.yaml", "--overrides", "FP16", "True", "WANDB", "False", "PORT", "36000",
+            "MODEL.DECODER.HIDDEN_DIM", "512", 
+            "MODEL.ENCODER.CONVS_DIM", "512", 
+            "MODEL.ENCODER.MASK_DIM", "512", 
+            "MODEL.DECODER.CAPTIONING.ENABLED", "True", 
+            "MODEL.DECODER.RETRIEVAL.ENABLED", "True", 
+            "MODEL.DECODER.GROUNDING.ENABLED", "True", 
+            "MODEL.DECODER.CAPTIONING_WEIGHT", "8", 
+            "MODEL.DECODER.RETRIEVAL_WEIGHT", "8", 
+            "MODEL.DECODER.TOP_CAPTIONING_LAYERS", "3", 
+            "MODEL.DECODER.TOP_RETRIEVAL_LAYERS", "3", 
+            "MODEL.DECODER.TOP_GROUNDING_LAYERS", "6", 
+            "MODEL.DECODER.GROUNDING.TEXT_WEIGHT", "2.0", 
+            "MODEL.DECODER.GROUNDING.CLASS_WEIGHT", "0.5", 
+            "COCO.INPUT.IMAGE_SIZE", "256", 
+            "COCO.TEST.BATCH_SIZE_TOTAL", "2", 
+            "COCO.TRAIN.BATCH_SIZE_TOTAL", "2", 
+            "COCO.TRAIN.BATCH_SIZE_PER_GPU", "2", 
+            "INSTRUCT.INPUT.IMAGE_SIZE", "256",
+            "INSTRUCT.TEST.BATCH_SIZE_TOTAL", "12", 
+            "INSTRUCT.TRAIN.BATCH_SIZE_TOTAL", "2", 
+            "INSTRUCT.TRAIN.BATCH_SIZE_PER_GPU", "2", 
+            "INSTRUCT.DATALOADER.NUM_WORKERS", "32", 
+            "ADE20K.TEST.BATCH_SIZE_TOTAL", "2", 
+            "REF.TEST.BATCH_SIZE_TOTAL", "2", 
+            "VLP.TEST.BATCH_SIZE_TOTAL", "2",
+            "SOLVER.LR_MULTIPLIER.lang_encoder", "0.1", 
+            "WEIGHT", "True", 
+            "RESUME_FROM", 
+            "/mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt"],
+            
+        }
+    ]
+}

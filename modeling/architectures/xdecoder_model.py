@@ -77,7 +77,7 @@ class GeneralizedXdecoder(nn.Module):
         self.input_label = torch.tensor([1 for _ in range(self.input_point.shape[0])]).cuda()
 
         # LBK build LLM
-        # self.model, self.llm_tokenizer = prepare_llm() 
+        self.model, self.llm_tokenizer = prepare_llm() 
 
         self.sem_seg_head = sem_seg_head
         self.sam = sam # sam
