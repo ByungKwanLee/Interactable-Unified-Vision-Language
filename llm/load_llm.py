@@ -43,7 +43,6 @@ def prepare_llm(ckpt="/mnt/hard1/lbk-cvpr/checkpoints/vicuna-7b-v1.3"):
     )
     tokenizer.pad_token = tokenizer.unk_token
 
-
     # penetrate return
     return model, tokenizer, DataCollatorForSupervisedDataset(tokenizer=tokenizer)
 

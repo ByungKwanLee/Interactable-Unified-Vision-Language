@@ -34,7 +34,6 @@ PORT: '36873'
 # misc
 LOADER:
   JOINT: True
-  KEY_DATASET: 'coco'
 
 ##################
 # Task settings

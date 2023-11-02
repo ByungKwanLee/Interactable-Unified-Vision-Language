@@ -154,9 +154,9 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
         self.train_dataloaders = self.pipeline.get_dataloaders('train', is_evaluation=False)
 
         try:
-            self.min_length_dataset = 0
+            self.min_length_dataset = torch.inf
             for dataset_name in self.train_dataloaders.dataset_names:
-                if self.min_length_dataset < len(getattr(self.train_dataloaders, dataset_name)):
+                if self.min_length_dataset > len(getattr(self.train_dataloaders, dataset_name)):
                     self.min_length_dataset = len(getattr(self.train_dataloaders, dataset_name))
         except:
             self.min_length_dataset = len(self.train_dataloaders)
