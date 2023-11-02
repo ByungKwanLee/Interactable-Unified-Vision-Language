@@ -32,6 +32,7 @@ def prepare_llm(ckpt="/mnt/hard1/lbk-cvpr/checkpoints/vicuna-7b-v1.3"):
 
     model = LlavaLlamaForCausalLM.from_pretrained(ckpt, cache_dir=False, **bnb_model_from_pretrained_args)
     if args.bits == 16 and args.bf16: model.to(torch.bfloat16)
+    for param in model.parameters(): param.requires_grad = False
             
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         ckpt,
@@ -40,8 +41,8 @@ def prepare_llm(ckpt="/mnt/hard1/lbk-cvpr/checkpoints/vicuna-7b-v1.3"):
         padding_side="right",
         use_fast=False,
     )
-
     tokenizer.pad_token = tokenizer.unk_token
+
 
     # penetrate return
     return model, tokenizer, DataCollatorForSupervisedDataset(tokenizer=tokenizer)

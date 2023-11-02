@@ -79,7 +79,7 @@ class GeneralizedXdecoder(nn.Module):
         # LBK build LLM
         self.llm, self.llm_tokenizer, self.data_collator = prepare_llm()
         self.img_to_lang = nn.Linear(512, 4096)
-
+                
         self.sem_seg_head = sem_seg_head
         self.sam = sam # sam
         self.criterion = criterion
