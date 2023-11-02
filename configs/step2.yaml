@@ -5,13 +5,16 @@
 # Written by Xueyan Zou (xueyan@cs.wisc.edu)
 # --------------------------------------------------------
 
-
+# Datasets
 DATASETS:
   TRAIN: ["instruction_train"] # instruction_train / instp_train / vlp_train
   TEST: ["refcocog_val_umd", "vlp_val"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
+
+# LLM
+Load_LLM: false
 
 # SAM Image Resolution
 IMG_RESOLUTION: 256
@@ -248,7 +251,7 @@ INSTRUCT:
     SAMPLER_TRAIN: "TrainingSampler"
     ASPECT_RATIO_GROUPING: True
 
-  # Instruction FT Dataset
+# Instruction FT Dataset
 INSTP:
   INPUT:
     IMAGE_SIZE: 256
@@ -271,6 +274,21 @@ INSTP:
     LOAD_PROPOSALS: False
     SAMPLER_TRAIN: "TrainingSampler"
     ASPECT_RATIO_GROUPING: True
+
+# VOC Evaluation Dataset
+VOC:
+  INPUT:
+    MIN_SIZE_TEST: 1000
+    MAX_SIZE_TEST: 1024
+  DATALOADER:
+    FILTER_EMPTY_ANNOTATIONS: False
+    NUM_WORKERS: 0
+    LOAD_PROPOSALS: False
+    SAMPLER_TRAIN: "TrainingSampler"
+    ASPECT_RATIO_GROUPING: False
+  TEST:
+    BATCH_SIZE_TOTAL: 8
+
 
 INPUT:
   PIXEL_MEAN: [123.675, 116.280, 103.530]
@@ -422,3 +440,29 @@ CITY:
   DATALOADER:
     FILTER_EMPTY_ANNOTATIONS: True
     NUM_WORKERS: 4
+
+
+# Spatial sampler
+STROKE_SAMPLER:
+  MAX_CANDIDATE: 1
+  CANDIDATE_PROBS: [0.25, 0.25, 0.25, 0.25] # for training only
+  CANDIDATE_NAMES: ["Point", "Polygon", "Scribble", "Circle"]
+  DILATION: 3
+  CIRCLE:
+    NUM_STROKES: 5
+    STROKE_PRESET: ['object_like', 'object_like_middle', 'object_like_small']
+    STROKE_PROB: [0.33, 0.33, 0.33]
+  SCRIBBLE:
+    NUM_STROKES: 5
+    STROKE_PRESET: ['rand_curve', 'rand_curve_small']
+    STROKE_PROB: [0.5, 0.5]
+  POINT:
+    NUM_POINTS: 20
+  POLYGON:
+    MAX_POINTS: 9
+  EVAL:
+    MODE: 'best' # best/random/best_random
+    NEGATIVE: False
+    MAX_ITER: 20
+    IOU_ITER: 1
+    GROUNDING: False

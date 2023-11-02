@@ -38,6 +38,7 @@ class GeneralizedXdecoder(nn.Module):
     def __init__(
         self,
         *,
+        load_llm: bool,
         img_resolution: int,
         num_grids_horizon: int,
         sem_seg_head: nn.Module,
@@ -77,8 +78,9 @@ class GeneralizedXdecoder(nn.Module):
         self.input_label = torch.tensor([1 for _ in range(self.input_point.shape[0])]).cuda()
 
         # LBK build LLM
-        self.llm, self.llm_tokenizer, self.data_collator = prepare_llm(bits=4)
-        self.img_to_lang = nn.Linear(512, 4096)
+        if load_llm:
+            self.llm, self.llm_tokenizer, self.data_collator = prepare_llm(bits=4)
+            self.img_to_lang = nn.Linear(512, 4096)
                 
         self.sem_seg_head = sem_seg_head
         self.sam = sam # sam
@@ -214,6 +216,7 @@ class GeneralizedXdecoder(nn.Module):
         phrase_prob = dec_cfg['CAPTION'].get('PHRASE_PROB', 0.5)
 
         return {
+            "load_llm": cfg['Load_LLM'],
             "img_resolution": cfg['IMG_RESOLUTION'],
             "num_grids_horizon": cfg['NUM_GRIDS_HORIZON'],
             "sem_seg_head": sem_seg_head,
