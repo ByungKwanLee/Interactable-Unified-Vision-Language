@@ -6,8 +6,8 @@ length=${#GPU_DEVICE}
 port=$(($RANDOM%10000+30000))
 n_gpu=$(((length+1)/2))
 image_bath=2
-lang_batch=4
-n_workers=10
+lang_batch=10
+n_workers=12
 
 CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             --conf_files configs/step1_vlp.yaml \

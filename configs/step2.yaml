@@ -8,7 +8,6 @@
 
 DATASETS:
   TRAIN: ["instruction_train"] # instruction_train / instp_train / vlp_train
-  # open vocabulary segmentation evaluation.
   TEST: ["refcocog_val_umd", "vlp_val"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []

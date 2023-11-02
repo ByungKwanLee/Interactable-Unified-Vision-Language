@@ -100,7 +100,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         shift_labels = shift_labels.to(shift_logits.device)
         loss = loss_fct(shift_logits, shift_labels)
 
-        return {'llm_loss': loss}
+        return {'loss_llm': loss}
 
     def prepare_inputs_for_generation(
         self, input_ids, past_key_values=None, attention_mask=None, inputs_embeds=None, **kwargs

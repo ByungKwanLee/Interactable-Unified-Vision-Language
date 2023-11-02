@@ -77,8 +77,8 @@ class GeneralizedXdecoder(nn.Module):
         self.input_label = torch.tensor([1 for _ in range(self.input_point.shape[0])]).cuda()
 
         # LBK build LLM
-        # self.llm, self.llm_tokenizer, self.data_collator = prepare_llm()
-        # self.img_to_lang = nn.Linear(512, 4096)
+        self.llm, self.llm_tokenizer, self.data_collator = prepare_llm(bits=4)
+        self.img_to_lang = nn.Linear(512, 4096)
                 
         self.sem_seg_head = sem_seg_head
         self.sam = sam # sam
@@ -189,6 +189,10 @@ class GeneralizedXdecoder(nn.Module):
                         continue
                     aux_weight_dict.update({k.replace('_0', f"_{i+1}"): v})
             weight_dict.update(aux_weight_dict)
+        
+        
+        # llm loss
+        weight_dict.update({'loss_llm': 1.0})
 
         grd_weight = {'text': dec_cfg['GROUNDING']['TEXT_WEIGHT'], 'class': dec_cfg['GROUNDING']['CLASS_WEIGHT']}
         # generate critenrion for loss function.
