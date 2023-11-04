@@ -65,7 +65,7 @@ class UtilsTrainer(DistributedTrainer):
             self.raw_models[module_name] = self.raw_models[module_name].from_pretrained(load_path)
             self.raw_models[module_name].to(self.opt['device'])
 
-    def save_checkpoint(self):
+    def save_checkpoint(self, epoch):
         
         save_dir = self.save_folder
 
@@ -89,7 +89,7 @@ class UtilsTrainer(DistributedTrainer):
             for module_name in self.model_names:
                 module_save_dir = os.path.join(save_dir, module_name)
                 os.makedirs(module_save_dir, exist_ok=True)
-                save_path = os.path.join(module_save_dir, 'module_training_states.pt')
+                save_path = os.path.join(module_save_dir, f'epoch{epoch}_module_training_states.pt')
                 state = {'module': self.models[module_name].state_dict(),
                             'optimizer': self.optimizers[module_name].state_dict(),
                             'lr_scheduler': self.lr_schedulers[module_name].state_dict(),
@@ -99,7 +99,7 @@ class UtilsTrainer(DistributedTrainer):
         if self.opt['rank'] == 0:
             for module_name in self.model_names:
                 module_save_dir = os.path.join(save_dir, module_name)
-                self.raw_models[module_name].save_pretrained(module_save_dir)
+                self.raw_models[module_name].save_pretrained(module_save_dir, epoch)
 
     def load_weight(self, checkpoint_path=None):
         self.load_model(checkpoint_path)

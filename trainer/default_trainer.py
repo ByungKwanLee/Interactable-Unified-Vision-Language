@@ -206,7 +206,7 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
         num_epochs = self.opt['SOLVER']['MAX_NUM_EPOCHS']
         
         for epoch in range(num_epochs):
-            if self.opt['rank'] == 0: print(f"Start epoch: {epoch} training.")
+            if self.opt['rank'] == 0: print(f"Start epoch: {epoch+1} training.")
             
             prog_bar = tqdm(enumerate(self.train_dataloaders), total=self.min_length_dataset, leave=True)
             for batch_idx, batch in prog_bar:
@@ -225,18 +225,15 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
 
                 loss_list = [obj.val for _, obj in self.train_loss.losses.items()]
                 total_loss = sum(loss_list) / len(loss_list)
-                desc = f"|Epochs[{epoch}]|[{batch_idx+1}/{self.min_length_dataset}]|"
+                desc = f"|Epochs[{epoch+1}]|[{batch_idx+1}/{self.min_length_dataset}]|"
                 desc += f"LR[{', '.join([f'{val:.2e}' for _, val in last_lr.items()])}]|"
                 desc += f"Loss[{total_loss:.2f}]|"
                 prog_bar.set_description(desc, refresh=True)
                 if self.min_length_dataset == batch_idx + 1: break
-
-            # synchronize
-            if torch.cuda.is_available(): torch.cuda.synchronize()
-
+                
             # evaluate and save ckpt every epoch
             if self.opt['rank'] == 0: print('\n-----------Saving CKPT...-----------\n')
-            self.save_checkpoint()
+            self.save_checkpoint(epoch+1)
             results = self._eval_on_set()
             if self.opt['rank'] == 0: self.dictionary_display(results)
             if self.opt['rank'] == 0 and self.opt['WANDB']: wandb.log(results)

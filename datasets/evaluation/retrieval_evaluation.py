@@ -128,8 +128,8 @@ class RetrievalEvaluator(DatasetEvaluator):
         if self._distributed:
             comm.synchronize()
             def gather(x, move=False):
-                x = comm.gather(x)
-                x = list(itertools.chain(*x))
+                # x = comm.gather(x)
+                # x = list(itertools.chain(*x))
                 if move:
                     x = [xx.to(self._text_embeds[0].device) for xx in x]
                 return x

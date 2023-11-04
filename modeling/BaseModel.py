@@ -19,8 +19,8 @@ class BaseModel(nn.Module):
         outputs = self.model(*inputs, **kwargs)
         return outputs
 
-    def save_pretrained(self, save_dir):
-        torch.save(self.model.state_dict(), os.path.join(save_dir, "model_state_dict.pt"))
+    def save_pretrained(self, save_dir, epoch):
+        torch.save(self.model.state_dict(), os.path.join(save_dir, f"epoch{epoch}_model_state_dict.pt"))
 
     def from_pretrained(self, load_dir):
         state_dict = torch.load(load_dir, map_location=self.opt['device'])
