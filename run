@@ -6,7 +6,7 @@ length=${#GPU_DEVICE}
 port=$(($RANDOM%10000+30000))
 n_gpu=$(((length+1)/2))
 image_bath=2
-lang_batch=10
+lang_batch=12
 n_workers=4
 
 CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
@@ -55,10 +55,10 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 # n_workers=0
 
 # CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python lbk_entry.py train \
-#             --conf_files configs/step1.yaml \
+#             --conf_files configs/step1_instp.yaml \
 #             --overrides \
 #             MODEL.TEXT.TOKENIZER clip\
-#             WANDB False\
+#             WANDB True\
 #             FP16 True \
 #             PORT $port \
 #             SAVE_DIR ckpt/ \
@@ -102,7 +102,7 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 # lang_batch=10
 
 # CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
-#             --conf_files configs/step2.yaml \
+#             --conf_files configs/step2_instruction.yaml \
 #             --overrides \
 #             MODEL.TEXT.TOKENIZER clip\
 #             FP16 True \
