@@ -36,7 +36,7 @@ PYLEARN_MODEL: '' # model resume when evaluation
 # Logging and Debug
 WANDB: true
 LOG_EVERY: 100
-FIND_UNUSED_PARAMETERS: true
+FIND_UNUSED_PARAMETERS: false
 
 # Speed up training
 FP16: true
