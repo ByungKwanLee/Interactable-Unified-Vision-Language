@@ -1,65 +1,21 @@
 #!/usr/bin/env bash
 
 # VLP
-GPU_DEVICE="0,1,2,3,4,5,6,7"
-length=${#GPU_DEVICE}
-port=$(($RANDOM%10000+30000))
-n_gpu=$(((length+1)/2))
-image_bath=2
-lang_batch=10
-n_workers=4
-
-CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
-            --conf_files configs/step1_vlp.yaml \
-            --overrides \
-            FP16 True \
-            PORT $port \
-            SAVE_DIR ckpt/ \
-            WANDB True \
-            MODEL.DECODER.HIDDEN_DIM 512 \
-            MODEL.ENCODER.CONVS_DIM 512 \
-            MODEL.ENCODER.MASK_DIM 512 \
-            MODEL.DECODER.CAPTIONING.ENABLED True \
-            MODEL.DECODER.RETRIEVAL.ENABLED True \
-            MODEL.DECODER.GROUNDING.ENABLED True \
-            MODEL.DECODER.CAPTIONING_WEIGHT 8 \
-            MODEL.DECODER.RETRIEVAL_WEIGHT 8 \
-            MODEL.DECODER.TOP_CAPTIONING_LAYERS 3 \
-            MODEL.DECODER.TOP_RETRIEVAL_LAYERS 3 \
-            MODEL.DECODER.TOP_GROUNDING_LAYERS 6 \
-            MODEL.DECODER.GROUNDING.TEXT_WEIGHT 2.0 \
-            MODEL.DECODER.GROUNDING.CLASS_WEIGHT 0.5 \
-            COCO.INPUT.IMAGE_SIZE 256 \
-            COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
-            COCO.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
-            COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
-            VLP.INPUT.IMAGE_SIZE 256 \
-            VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
-            VLP.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
-            VLP.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
-            COCO.DATALOADER.NUM_WORKERS $n_workers \
-            VLP.DATALOADER.NUM_WORKERS $n_workers \
-            ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
-            REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
-            SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
-            WEIGHT True \
-            RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
-
-# INSTP
-# GPU_DEVICE="0,1,2,3"
+# GPU_DEVICE="0,1,2,3,4,5,6,7"
 # length=${#GPU_DEVICE}
-# n_gpu=$(((length+1)/2))
 # port=$(($RANDOM%10000+30000))
+# n_gpu=$(((length+1)/2))
 # image_bath=2
 # lang_batch=10
+# n_workers=4
 
 # CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
-#             --conf_files configs/step1.yaml \
+#             --conf_files configs/step1_vlp.yaml \
 #             --overrides \
-#             MODEL.TEXT.TOKENIZER clip\
 #             FP16 True \
 #             PORT $port \
 #             SAVE_DIR ckpt/ \
+#             WANDB True \
 #             MODEL.DECODER.HIDDEN_DIM 512 \
 #             MODEL.ENCODER.CONVS_DIM 512 \
 #             MODEL.ENCODER.MASK_DIM 512 \
@@ -74,21 +30,66 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 #             MODEL.DECODER.GROUNDING.TEXT_WEIGHT 2.0 \
 #             MODEL.DECODER.GROUNDING.CLASS_WEIGHT 0.5 \
 #             COCO.INPUT.IMAGE_SIZE 256 \
+#             COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
 #             COCO.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
 #             COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
-#             COCO.DATALOADER.NUM_WORKERS 20 \
-#             INSTP.INPUT.IMAGE_SIZE 256 \
-#             INSTP.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
-#             INSTP.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
-#             INSTP.DATALOADER.NUM_WORKERS 20 \
-#             INSTP.TEST.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
-#             COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
+#             VLP.INPUT.IMAGE_SIZE 256 \
+#             VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
+#             VLP.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
+#             VLP.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
+#             COCO.DATALOADER.NUM_WORKERS $n_workers \
+#             VLP.DATALOADER.NUM_WORKERS $n_workers \
 #             ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
 #             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
-#             VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
 #             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
 #             WEIGHT True \
 #             RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
+
+# INSTP
+GPU_DEVICE="0,1,2,3,4,5,6,7"
+length=${#GPU_DEVICE}
+n_gpu=$(((length+1)/2))
+port=$(($RANDOM%10000+30000))
+image_bath=2
+lang_batch=10
+n_workers=16
+
+CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
+            --conf_files configs/step1.yaml \
+            --overrides \
+            MODEL.TEXT.TOKENIZER clip\
+            FP16 True \
+            PORT $port \
+            SAVE_DIR ckpt/ \
+            MODEL.DECODER.HIDDEN_DIM 512 \
+            MODEL.ENCODER.CONVS_DIM 512 \
+            MODEL.ENCODER.MASK_DIM 512 \
+            MODEL.DECODER.CAPTIONING.ENABLED True \
+            MODEL.DECODER.RETRIEVAL.ENABLED True \
+            MODEL.DECODER.GROUNDING.ENABLED True \
+            MODEL.DECODER.CAPTIONING_WEIGHT 8 \
+            MODEL.DECODER.RETRIEVAL_WEIGHT 8 \
+            MODEL.DECODER.TOP_CAPTIONING_LAYERS 3 \
+            MODEL.DECODER.TOP_RETRIEVAL_LAYERS 3 \
+            MODEL.DECODER.TOP_GROUNDING_LAYERS 6 \
+            MODEL.DECODER.GROUNDING.TEXT_WEIGHT 2.0 \
+            MODEL.DECODER.GROUNDING.CLASS_WEIGHT 0.5 \
+            COCO.INPUT.IMAGE_SIZE 256 \
+            COCO.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
+            COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
+            COCO.DATALOADER.NUM_WORKERS $n_workers \
+            INSTP.INPUT.IMAGE_SIZE 256 \
+            INSTP.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
+            INSTP.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
+            INSTP.DATALOADER.NUM_WORKERS $n_workers \
+            INSTP.TEST.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
+            COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
+            ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
+            REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
+            VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
+            SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
+            WEIGHT True \
+            RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
 
 
 # INSTRUCTION

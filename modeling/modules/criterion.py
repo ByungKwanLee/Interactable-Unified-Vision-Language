@@ -204,7 +204,17 @@ class SetCriterion(nn.Module):
 
         # compute query-token contrastive loss
         ttk_emb = torch.cat([x['caption_tokens'] for x in targets], dim=0)
-        ttk_mask = torch.cat([x['caption_mask'] for x in targets], dim=0).float()
+        
+        attn_mask = []
+        for i in range(len(targets)):
+            if targets[i]['caption_mask'][0,0].item() == 0:
+                nonzero_idx = targets[i]['caption_mask'].nonzero()[0,1].item()
+                attn_mask.append(torch.cat([targets[i]['caption_mask'][0,nonzero_idx:], targets[i]['caption_mask'][0,:nonzero_idx]]).unsqueeze(0))
+            else:
+                attn_mask.append(targets[i]['caption_mask'].unsqueeze(0))
+        
+        ttk_mask = torch.cat(attn_mask, dim=0).float()      
+        # ttk_mask = torch.cat([x['caption_mask'] for x in targets], dim=0).float()
         ttk_mask = ttk_mask * torch.cumsum(ttk_mask, dim=1)
         vtk_emb = outputs['pred_captions'][:,:-1]
         keep = torch.cat([x['caption_mask'] for x in targets], dim=0).bool()
