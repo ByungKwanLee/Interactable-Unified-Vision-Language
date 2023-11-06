@@ -467,8 +467,10 @@ class GeneralizedXdecoder(nn.Module):
         return losses
 
     def evaluate(self, batched_inputs):
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
+        images = [x["image"].flip(0).to(self.device) for x in batched_inputs]
+        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+        images = ImageList.from_tensors(images, 32)
+        images = images.tensor
 
         targets = targets_grounding = queries_grounding = None
         
@@ -541,8 +543,10 @@ class GeneralizedXdecoder(nn.Module):
         return processed_results
 
     def evaluate_retrieval(self, batched_inputs):
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
+        images = [x["image"].flip(0).to(self.device) for x in batched_inputs]
+        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+        images = ImageList.from_tensors(images, 32)
+        images = images.tensor
 
         targets = targets_grounding = queries_grounding = None
         
@@ -594,8 +598,10 @@ class GeneralizedXdecoder(nn.Module):
         return processed_results
 
     def evaluate_captioning(self, batched_inputs):
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
+        images = [x["image"].flip(0).to(self.device) for x in batched_inputs]
+        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+        images = ImageList.from_tensors(images, 32)
+        images = images.tensor
         
         # LBK SAM propagation
         sam_input = [
@@ -634,8 +640,10 @@ class GeneralizedXdecoder(nn.Module):
         return processed_results
 
     def evaluate_classification(self, batched_inputs):
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
+        images = [x["image"].flip(0).to(self.device) for x in batched_inputs]
+        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+        images = ImageList.from_tensors(images, 32)
+        images = images.tensor
         
         # LBK SAM propagation
         sam_input = [
@@ -660,8 +668,10 @@ class GeneralizedXdecoder(nn.Module):
         return processed_results
 
     def evaluate_grounding(self, batched_inputs):
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
+        images = [x["image"].flip(0).to(self.device) for x in batched_inputs]
+        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+        images = ImageList.from_tensors(images, 32)
+        images = images.tensor
         
         # LBK SAM propagation
         sam_input = [

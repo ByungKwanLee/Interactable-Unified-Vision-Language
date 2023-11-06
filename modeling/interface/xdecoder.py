@@ -152,7 +152,7 @@ class XDecoder(nn.Module):
         self.register_buffer("self_attn_mask", self_attn_mask)
 
         # LBK EDIT
-        self.sam_pler = nn.Conv2d(in_channels=32, out_channels=512, kernel_size=(1, 1))
+        self.sam_pler = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(1, 1))
 
 
     @classmethod
@@ -202,7 +202,7 @@ class XDecoder(nn.Module):
         # embedding tensor
         visual_query_list = []
         for upscaled_embedding in upscaled_embedding_list:
-            out = F.avg_pool2d(self.sam_pler(upscaled_embedding), kernel_size=upscaled_embedding.shape[2:]).squeeze(2, 3).unsqueeze(1)
+            out = self.sam_pler(upscaled_embedding.contiguous()).mean(dim=(2,3)).unsqueeze(1)
             visual_query_list.append(out)
         visual_queries = torch.cat(visual_query_list, dim=1)
 
@@ -354,7 +354,7 @@ class XDecoder(nn.Module):
         # embedding tensor
         visual_query_list = []
         for upscaled_embedding in upscaled_embedding_list:
-            out = F.avg_pool2d(self.sam_pler(upscaled_embedding), kernel_size=upscaled_embedding.shape[2:]).squeeze(2, 3).unsqueeze(1)
+            out = self.sam_pler(upscaled_embedding.contiguous()).mean(dim=(2,3)).unsqueeze(1)
             visual_query_list.append(out)
         visual_queries = torch.cat(visual_query_list, dim=1)
 
