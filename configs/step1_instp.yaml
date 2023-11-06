@@ -479,30 +479,3 @@ STROKE_SAMPLER:
     MAX_ITER: 20
     IOU_ITER: 1
     GROUNDING: False
-
-
-
-# Spatial sampler
-STROKE_SAMPLER:
-  MAX_CANDIDATE: 1
-  CANDIDATE_PROBS: [0.25, 0.25, 0.25, 0.25] # for training only
-  CANDIDATE_NAMES: ["Point", "Polygon", "Scribble", "Circle"]
-  DILATION: 3
-  CIRCLE:
-    NUM_STROKES: 5
-    STROKE_PRESET: ['object_like', 'object_like_middle', 'object_like_small']
-    STROKE_PROB: [0.33, 0.33, 0.33]
-  SCRIBBLE:
-    NUM_STROKES: 5
-    STROKE_PRESET: ['rand_curve', 'rand_curve_small']
-    STROKE_PROB: [0.5, 0.5]
-  POINT:
-    NUM_POINTS: 20
-  POLYGON:
-    MAX_POINTS: 9
-  EVAL:
-    MODE: 'best' # best/random/best_random
-    NEGATIVE: False
-    MAX_ITER: 20
-    IOU_ITER: 1
-    GROUNDING: False
