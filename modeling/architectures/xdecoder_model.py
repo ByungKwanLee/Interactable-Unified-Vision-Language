@@ -469,8 +469,7 @@ class GeneralizedXdecoder(nn.Module):
     def evaluate(self, batched_inputs):
         images = [x["image"].flip(0).to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, 32)
-        images = images.tensor
+        images = ImageList.from_tensors(images, 32).tensor
 
         targets = targets_grounding = queries_grounding = None
         
@@ -545,8 +544,7 @@ class GeneralizedXdecoder(nn.Module):
     def evaluate_retrieval(self, batched_inputs):
         images = [x["image"].flip(0).to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, 32)
-        images = images.tensor
+        images = ImageList.from_tensors(images, 32).tensor
 
         targets = targets_grounding = queries_grounding = None
         
@@ -600,8 +598,7 @@ class GeneralizedXdecoder(nn.Module):
     def evaluate_captioning(self, batched_inputs):
         images = [x["image"].flip(0).to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, 32)
-        images = images.tensor
+        images = ImageList.from_tensors(images, 32).tensor
         
         # LBK SAM propagation
         sam_input = [
@@ -642,8 +639,7 @@ class GeneralizedXdecoder(nn.Module):
     def evaluate_classification(self, batched_inputs):
         images = [x["image"].flip(0).to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, 32)
-        images = images.tensor
+        images = ImageList.from_tensors(images, 32).tensor
         
         # LBK SAM propagation
         sam_input = [
@@ -670,8 +666,7 @@ class GeneralizedXdecoder(nn.Module):
     def evaluate_grounding(self, batched_inputs):
         images = [x["image"].flip(0).to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, 32)
-        images = images.tensor
+        images = ImageList.from_tensors(images, 32).tensor
         
         # LBK SAM propagation
         sam_input = [
