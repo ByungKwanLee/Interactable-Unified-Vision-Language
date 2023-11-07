@@ -84,3 +84,45 @@ class Sam(nn.Module):
           src_list.append(src)
 
         return x_list, hyper_in_list, upscaled_embedding_list, src_list
+
+
+    # Image Embedding for Interactive SAM
+    @torch.no_grad()
+    def forward_image_embedding(self, images):
+        image_embeddings, x_list = self.image_encoder(images)
+        return image_embeddings, x_list
+
+    # Image Embedding for Interactive SAM
+    @torch.no_grad()
+    def decode_from_embedding(
+        self,
+        image_embeddings: torch.Tensor,
+        batched_input: List[Dict[str, Any]],
+        multimask_output: bool,
+    ) -> List[Dict[str, torch.Tensor]]:
+        
+        hyper_in_list = []
+        upscaled_embedding_list = []
+        src_list = []
+        for image_record, curr_embedding in zip(batched_input, image_embeddings):
+          if "point_coords" in image_record:
+              points = (image_record["point_coords"], image_record["point_labels"])
+          else:
+              points = None
+          sparse_embeddings, dense_embeddings = self.prompt_encoder(
+              points=points,
+              boxes=image_record.get("boxes", None),
+              masks=image_record.get("mask_inputs", None),
+          )
+          low_res_masks, iou_predictions, hyper_in, upscaled_embedding, src = self.mask_decoder(
+              image_embeddings=curr_embedding.unsqueeze(0),
+              image_pe=self.prompt_encoder.get_dense_pe(),
+              sparse_prompt_embeddings=sparse_embeddings,
+              dense_prompt_embeddings=dense_embeddings,
+              multimask_output=multimask_output,
+          )
+          hyper_in_list.append(hyper_in)
+          upscaled_embedding_list.append(upscaled_embedding)
+          src_list.append(src)
+
+        return hyper_in_list, upscaled_embedding_list, src_list
