@@ -105,4 +105,5 @@ def _build_sam(
         with open(checkpoint, "rb") as f:
             state_dict = torch.load(f)
         sam.load_state_dict(state_dict)
+    for param in sam.parameters(): param.requires_grad = False # LBK EDIT
     return sam

@@ -36,7 +36,7 @@ PYLEARN_MODEL: '' # model resume when evaluation
 # Logging and Debug
 WANDB: true
 LOG_EVERY: 100
-FIND_UNUSED_PARAMETERS: true
+FIND_UNUSED_PARAMETERS: false
 
 # Speed up training
 FP16: true
@@ -303,7 +303,7 @@ DATALOADER:
 # Detectron2 training config for optimizer and lr scheduler
 SOLVER:
   BASE_LR: 0.0001
-  STEPS: [0.6, 0.8] #[0.88889, 0.96296]
+  STEPS: [0.88889, 0.96296]
   MAX_ITER: 1
   GAMMA: 0.1
   WARMUP_FACTOR: 1.0
@@ -324,7 +324,7 @@ SOLVER:
     NORM_TYPE: 2.0
   AMP:
     ENABLED: True
-  MAX_NUM_EPOCHS: 10 #50
+  MAX_NUM_EPOCHS: 50
 
 # Evaluation Dataset
 ADE20K:
