@@ -204,7 +204,7 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
         """
         self.init_train()
         num_epochs = self.opt['SOLVER']['MAX_NUM_EPOCHS']
-        
+        eval_period = self.min_length_dataset // 4 # LBK EDIT
         for epoch in range(num_epochs):
             if self.opt['rank'] == 0: print(f"Start epoch: {epoch+1} training.")
             
@@ -231,6 +231,11 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
                 desc += f"Loss[{total_loss:.2f}]|"
                 prog_bar.set_description(desc, refresh=True)
                 if self.min_length_dataset == batch_idx + 1: break
+
+                if batch_idx in [eval_period, eval_period*2, eval_period*3]:
+                    results = self._eval_on_set()
+                    if self.opt['rank'] == 0: self.dictionary_display(results)
+                    if self.opt['rank'] == 0 and self.opt['WANDB']: wandb.log(results)
                 
             # evaluate and save ckpt every epoch
             if self.opt['rank'] == 0: print('\n-----------Saving CKPT...-----------\n')
