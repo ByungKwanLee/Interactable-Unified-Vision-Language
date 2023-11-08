@@ -152,8 +152,8 @@ class XDecoder(nn.Module):
         self.register_buffer("self_attn_mask", self_attn_mask)
 
         # LBK EDIT
-        # self.sam_pler = nn.Conv3d(in_channels=32, out_channels=512, kernel_size=(1, 64, 64))
-        self.sam_pler = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(1, 1))
+        self.sam_pler = nn.Conv3d(in_channels=32, out_channels=512, kernel_size=(1, 64, 64)) # 3D Conv
+        # self.sam_pler = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(1, 1)) # MLP
 
 
     @classmethod
@@ -203,11 +203,12 @@ class XDecoder(nn.Module):
         # embedding tensor
         visual_query_list = []
         for upscaled_embedding in upscaled_embedding_list:
-            # interp_upscaled_embedding = F.interpolate(upscaled_embedding, size=(64, 64), mode='bilinear')
-            # out = self.sam_pler(interp_upscaled_embedding.transpose(0, 1).contiguous().unsqueeze(0)).squeeze(3, 4).permute(2, 0, 1)
-            out = self.sam_pler(upscaled_embedding.contiguous()).mean(dim=(2,3)).unsqueeze(1)
+            interp_upscaled_embedding = F.interpolate(upscaled_embedding, size=(64, 64), mode='bilinear') # 3D Conv
+            out = self.sam_pler(interp_upscaled_embedding.transpose(0, 1).contiguous().unsqueeze(0)).squeeze(3, 4).permute(2, 0, 1) # 3D Conv
+            # out = self.sam_pler(upscaled_embedding.contiguous()).mean(dim=(2,3)).unsqueeze(1) # MLP (GAP)
             visual_query_list.append(out)
         visual_queries = torch.cat(visual_query_list, dim=1)
+        visual_queries = visual_queries[torch.randperm(visual_queries.shape[0])]
 
         # disable mask, it does not affect performance
         del mask
@@ -357,11 +358,12 @@ class XDecoder(nn.Module):
         # embedding tensor
         visual_query_list = []
         for upscaled_embedding in upscaled_embedding_list:
-            # interp_upscaled_embedding = F.interpolate(upscaled_embedding, size=(64, 64), mode='bilinear')
-            # out = self.sam_pler(interp_upscaled_embedding.transpose(0, 1).contiguous().unsqueeze(0)).squeeze(3, 4).permute(2, 0, 1)
-            out = self.sam_pler(upscaled_embedding.contiguous()).mean(dim=(2,3)).unsqueeze(1)
+            interp_upscaled_embedding = F.interpolate(upscaled_embedding, size=(64, 64), mode='bilinear') # 3D Conv
+            out = self.sam_pler(interp_upscaled_embedding.transpose(0, 1).contiguous().unsqueeze(0)).squeeze(3, 4).permute(2, 0, 1) # 3D Conv
+            # out = self.sam_pler(upscaled_embedding.contiguous()).mean(dim=(2,3)).unsqueeze(1) # MLP (GAP)
             visual_query_list.append(out)
         visual_queries = torch.cat(visual_query_list, dim=1)
+        visual_queries = visual_queries[torch.randperm(visual_queries.shape[0])]
 
 
         # disable mask, it does not affect performance
