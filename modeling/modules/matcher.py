@@ -159,6 +159,7 @@ class HungarianMatcher(nn.Module):
                 + self.cost_dice * cost_dice
             )
             C = C.reshape(num_queries, -1).cpu()
+            C[C.isnan()]=1e+6 # LBK
             indices.append(linear_sum_assignment(C))
 
         return [
@@ -303,6 +304,7 @@ class HungarianMatcher(nn.Module):
                 + self.cost_dice * cost_dice
             )
             C = C.reshape(num_queries, -1).cpu()
+            C[C.isnan()]=1e+6 # LBK
             indices.append(linear_sum_assignment(C))
 
         return [
@@ -369,6 +371,7 @@ class HungarianMatcher(nn.Module):
                 + self.spatial_cost_dice * cost_dice
             )
             C = C.reshape(num_queries, -1).cpu()
+            C[C.isnan()]=1e+6 # LBK
             indices.append(linear_sum_assignment(C))
 
         return [
@@ -444,6 +447,7 @@ class HungarianMatcher(nn.Module):
                 + self.spatial_cost_dice * cost_dice
             )
             C = C.reshape(num_queries, -1).cpu()
+            C[C.isnan()]=1e+6 # LBK
             indices.append(linear_sum_assignment(C))
 
         return [
@@ -479,6 +483,7 @@ class HungarianMatcher(nn.Module):
             # Final cost matrix
             C = (self.cost_class * cost_class)
             C = C.reshape(num_queries, -1).cpu()
+            C[C.isnan()]=1e+6 # LBK
             indices.append(linear_sum_assignment(C))
 
         return [
@@ -549,6 +554,7 @@ class HungarianMatcher(nn.Module):
                 + self.cost_dice * cost_dice
             )
             C = C.reshape(num_queries, -1).cpu()
+            C[C.isnan()]=1e+6 # LBK
             indices.append(linear_sum_assignment(C))
 
         return [

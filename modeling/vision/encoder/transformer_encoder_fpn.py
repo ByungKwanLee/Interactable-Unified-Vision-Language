@@ -17,6 +17,7 @@ from ...utils import configurable
 class BasePixelDecoder(nn.Module):
     def __init__(
         self,
+        sam_size: str,
         conv_dim: int,
         mask_dim: int,
         mask_on: bool,
@@ -32,7 +33,12 @@ class BasePixelDecoder(nn.Module):
         super().__init__()
 
         self.in_features = ['res2', 'res3', 'res4', 'res5']  # starting from "res2" to "res5"
-        feature_channels = [768, 768, 768, 768] # LBK EDIT
+        if sam_size == 'base':
+            feature_channels = [768, 768, 768, 768] # LBK EDIT
+        elif sam_size =='large':
+            feature_channels = [1024, 1024, 1024, 1024] # LBK EDIT
+        elif sam_size =='huge':
+            feature_channels = [1280, 1280, 1280, 1280] # LBK EDIT
 
         lateral_convs = []
         output_convs = []
@@ -103,6 +109,7 @@ class BasePixelDecoder(nn.Module):
     def from_config(cls, cfg):
         enc_cfg = cfg['MODEL']['ENCODER']
         ret = {}
+        ret["sam_size"] = cfg['SAM_SIZE']
         ret["conv_dim"] = enc_cfg['CONVS_DIM']
         ret["mask_dim"] = enc_cfg['MASK_DIM']
         ret["norm"] = enc_cfg['NORM']
@@ -138,6 +145,7 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
     @configurable
     def __init__(
         self,
+        sam_size: str,
         conv_dim: int,
         mask_dim: int,
         mask_on: int,
@@ -150,7 +158,7 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
             mask_dim: number of output channels for the final conv layer.
             norm (str or callable): normalization for all conv layers
         """
-        super().__init__(conv_dim=conv_dim, mask_dim=mask_dim, norm=norm, mask_on=mask_on)
+        super().__init__(sam_size=sam_size, conv_dim=conv_dim, mask_dim=mask_dim, norm=norm, mask_on=mask_on)
 
         self.in_features = ['res2', 'res3', 'res4', 'res5']  # starting from "res2" to "res5"
 

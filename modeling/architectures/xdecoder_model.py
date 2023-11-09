@@ -29,6 +29,8 @@ from ..language.loss import vl_similarity, image_text_contrastive_loss_queue
 from utils.prompt_engineering import prompt_engineering
 from utils.constants import COCO_PANOPTIC_CLASSES
 from llm.load_llm import prepare_llm
+from sam.utils.amg import build_all_layer_point_grids
+
 
 st = LancasterStemmer()
 
@@ -39,6 +41,7 @@ class GeneralizedXdecoder(nn.Module):
     def __init__(
         self,
         *,
+        sam_size:str,
         load_llm: bool,
         img_resolution: int,
         num_grids_horizon: int,
@@ -73,8 +76,13 @@ class GeneralizedXdecoder(nn.Module):
         from sam import build_sam
         self.img_resolution = img_resolution
         self.num_grids_horizon = num_grids_horizon
-        sam = build_sam.sam_model_registry['vit_b'](checkpoint='sam/ckpt/sam_vit_b_01ec64.pth', custom_img_size=self.img_resolution)
-        from sam.utils.amg import build_all_layer_point_grids
+        self.sam_size = sam_size
+        if sam_size=='base':
+            sam = build_sam.sam_model_registry['vit_b'](checkpoint='sam/ckpt/sam_vit_b_01ec64.pth', custom_img_size=self.img_resolution)
+        elif sam_size=='large':
+            sam = build_sam.sam_model_registry['vit_l'](checkpoint='sam/ckpt/sam_vit_l_0b3195.pth', custom_img_size=self.img_resolution)
+        elif sam_size=='huge':
+            sam = build_sam.sam_model_registry['vit_h'](checkpoint='sam/ckpt/sam_vit_h_4b8939.pth', custom_img_size=self.img_resolution)
         self.input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * self.img_resolution, dtype=torch.int64).cuda()
         self.input_label = torch.tensor([1 for _ in range(self.input_point.shape[0])]).cuda()
 
@@ -216,7 +224,16 @@ class GeneralizedXdecoder(nn.Module):
         train_dataset_name = cfg['DATASETS']['TRAIN'][0] # HACK for only one training set.
         phrase_prob = dec_cfg['CAPTION'].get('PHRASE_PROB', 0.5)
 
+        # lbk edit
+        if cfg['SAM_SIZE'] == 'base':
+            backbone_dim = 768 
+        elif cfg['SAM_SIZE'] == 'large':
+            backbone_dim = 1024 
+        elif cfg['SAM_SIZE'] == 'huge':
+            backbone_dim = 1280 
+
         return {
+            "sam_size": cfg['SAM_SIZE'],
             "load_llm": cfg['Load_LLM'],
             "img_resolution": cfg['IMG_RESOLUTION'],
             "num_grids_horizon": cfg['NUM_GRIDS_HORIZON'],
@@ -243,7 +260,7 @@ class GeneralizedXdecoder(nn.Module):
             "test_topk_per_image": cfg['COCO']['TEST']['DETECTIONS_PER_IMAGE'],
             "train_dataset_name": train_dataset_name,
             "retrieval_emsemble": dec_cfg['RETRIEVAL']['ENSEMBLE'],
-            "backbone_dim": cfg['MODEL']['BACKBONE_DIM'],
+            "backbone_dim": backbone_dim,
             "dim_proj": cfg['MODEL']['DIM_PROJ'],
         }
 

@@ -19,6 +19,33 @@ Load_LLM: false
 # SAM Image Resolution
 IMG_RESOLUTION: 256
 NUM_GRIDS_HORIZON: 16
+SAM_SIZE: 'huge' # base/large/huge
+
+# Detectron2 training config for optimizer and lr scheduler
+SOLVER:
+  BASE_LR: 0.0001
+  STEPS: [0.6, 0.8] #[0.88889, 0.96296]
+  MAX_ITER: 1
+  GAMMA: 0.1
+  WARMUP_FACTOR: 1.0
+  WARMUP_ITERS: 10
+  WARMUP_METHOD: "linear"
+  WEIGHT_DECAY: 0.05
+  OPTIMIZER: "ADAMW"
+  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
+  LR_MULTIPLIER:
+    backbone: 0.1
+    lang_encoder: 0.1
+  WEIGHT_DECAY_NORM: 0.0
+  WEIGHT_DECAY_EMBED: 0.0
+  CLIP_GRADIENTS:
+    ENABLED: True
+    CLIP_TYPE: "full_model"
+    CLIP_VALUE: 5.0 # 0.01
+    NORM_TYPE: 2.0
+  AMP:
+    ENABLED: True
+  MAX_NUM_EPOCHS: 10 #50
 
 # Define Test/Trainer/Saving
 PIPELINE: XDecoderPipeline
@@ -299,32 +326,6 @@ DATALOADER:
   LOAD_PROPOSALS: False
   SAMPLER_TRAIN: "TrainingSampler"
   ASPECT_RATIO_GROUPING: True
-
-# Detectron2 training config for optimizer and lr scheduler
-SOLVER:
-  BASE_LR: 0.0001
-  STEPS: [0.6, 0.8] #[0.88889, 0.96296]
-  MAX_ITER: 1
-  GAMMA: 0.1
-  WARMUP_FACTOR: 1.0
-  WARMUP_ITERS: 10
-  WARMUP_METHOD: "linear"
-  WEIGHT_DECAY: 0.05
-  OPTIMIZER: "ADAMW"
-  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
-  LR_MULTIPLIER:
-    backbone: 0.1
-    lang_encoder: 0.1
-  WEIGHT_DECAY_NORM: 0.0
-  WEIGHT_DECAY_EMBED: 0.0
-  CLIP_GRADIENTS:
-    ENABLED: True
-    CLIP_TYPE: "full_model"
-    CLIP_VALUE: 5.0 # 0.01
-    NORM_TYPE: 2.0
-  AMP:
-    ENABLED: True
-  MAX_NUM_EPOCHS: 10 #50
 
 # Evaluation Dataset
 ADE20K:
