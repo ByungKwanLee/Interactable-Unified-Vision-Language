@@ -867,12 +867,16 @@ class GeneralizedXdecoder(nn.Module):
     def evaluate_interactive(self, batched_inputs):
         assert len(batched_inputs) == 1, "only support batch size equal to 1"
 
+        # interaction type
+        type = batched_inputs[0]['spatial_query']['types'][0]
+        assert type in ['point', 'circle', 'scribble', 'polygon', 'box'], "only support point, circle, scribble, polygon, box"
+
         # getting image 
         images = [x["image"].flip(0).to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
         images = ImageList.from_tensors(images, 32).tensor
         
-        # getitng pos masks from dataloader
+        # getitng pos masks from dataloader (Point/Circle/Scribble/Polygon/Box)
         pos_masks = [x['spatial_query']['rand_shape'].to(self.device).squeeze(1) for x in batched_inputs] # m points
         pos_masks = ImageList.from_tensors(pos_masks, 32).tensor[0].unbind(0)
 
@@ -881,8 +885,98 @@ class GeneralizedXdecoder(nn.Module):
         labels = F.interpolate(batched_inputs[0]['spatial_query']['gt_masks'].unsqueeze(0).float(), size=images.shape[2:]).squeeze(0)
         labels = labels == 1 # int2bool
     
-        all_batch_shape_iou = []
-        for _ in range(20):
+        if type=='point':
+
+            all_batch_shape_iou = []
+            for _ in range(20):
+
+                # LBK transformation: pos_masks to pos_points (smart duplication)
+                mask2point = lambda x: torch.stack([torch.tensor([b, a]) for a, b in zip(*x)])[4,:].unsqueeze(0)
+                pos_points = [mask2point(torch.where(x==True)) for x in pos_masks]
+                total_pos_points = torch.cat(pos_points, dim=0)
+                assert len(total_pos_points) <= 256, "only support total pos points <= 256"
+                q = 16**2 // len(total_pos_points)
+                r = 16**2 % len(total_pos_points)
+                sam_point_coords = torch.zeros([256, 2]).cuda()
+                sam_point_labels = torch.ones([256]).cuda()
+                sam_point_coords[:q*len(total_pos_points)] = total_pos_points.repeat(q, 1)
+                sam_point_coords[q*len(total_pos_points):] = total_pos_points[:r]
+                sam_input = [{'point_coords': sam_point_coords, 'point_labels': sam_point_labels}]
+
+                # LBK SAM propagation - (2)
+                _, upscaled_embedding_list, src_list\
+                = self.sam.decode_from_embedding(image_embeddings, sam_input, multimask_output=True)
+                outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, target_queries=None)
+
+                # upsample masks
+                mask_pred_results = F.interpolate(
+                    outputs['pred_masks'],
+                    size=labels.shape[1:],
+                    mode="bicubic",
+                    align_corners=False,
+                    antialias=True
+                ).squeeze(0)[:self.num_queries-1] > 0
+
+                # hugarian matching
+                idx_list = []
+                for label in labels: idx_list.append((label == mask_pred_results).sum(dim=(1,2)).argmax())
+                pred_masks = mask_pred_results[idx_list, ...]
+
+                # computting ious 
+                ious = get_iou(labels, pred_masks)
+                all_batch_shape_iou += [ious]
+                
+                # pos_masks update
+                pos_masks = self.prepare_next_spaital_mask(labels, pred_masks, pos_masks)
+
+            all_batch_shape_iou = torch.stack(all_batch_shape_iou)
+            processed_results = [{"mask_iou": all_batch_shape_iou[:,i]} for i in range(len(all_batch_shape_iou[0]))]
+            return processed_results
+
+        elif type=='box':
+            box_points = batched_inputs[0]['spatial_query']['box_points']
+            sam_boxes = torch.tensor([list(map(int, box_point)) for box_point in box_points]).cuda()
+            
+
+            assert len(sam_boxes) <= 256, "only support total boxes <= 256"
+            q = 16**2 // len(sam_boxes)
+            r = 16**2 % len(sam_boxes)
+            sam_box_coords = torch.zeros([256, 4]).cuda()
+            sam_box_coords[:q*len(sam_boxes)] = sam_boxes.repeat(q, 1)
+            sam_box_coords[q*len(sam_boxes):] = sam_boxes[:r]
+            sam_input = [{'boxes': sam_box_coords}]
+
+            # LBK SAM propagation - (2)
+            _, upscaled_embedding_list, src_list\
+            = self.sam.decode_from_embedding(image_embeddings, sam_input, multimask_output=True)
+            outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, target_queries=None)
+
+            # upsample masks
+            mask_pred_results = F.interpolate(
+                outputs['pred_masks'],
+                size=labels.shape[1:],
+                mode="bicubic",
+                align_corners=False,
+                antialias=True
+            ).squeeze(0)[:self.num_queries-1] > 0
+
+            # hugarian matching
+            idx_list = []
+            for label in labels: idx_list.append((label == mask_pred_results).sum(dim=(1,2)).argmax())
+            pred_masks = mask_pred_results[idx_list, ...]
+
+            # computting ious 
+            ious = get_iou(labels, pred_masks)
+            all_batch_shape_iou = torch.stack([ious])
+            processed_results = [{"mask_iou": all_batch_shape_iou[:,i]} for i in range(len(all_batch_shape_iou[0]))]
+            return processed_results
+
+
+
+
+
+        elif (type=='circle') or (type=='scribble') or (type=='polygon'):
+            all_batch_shape_iou = []
 
             # LBK transformation: pos_masks to pos_points (smart duplication)
             mask2point = lambda x: torch.stack([torch.tensor([b, a]) for a, b in zip(*x)])[4,:].unsqueeze(0)
@@ -895,9 +989,9 @@ class GeneralizedXdecoder(nn.Module):
             sam_point_labels = torch.ones([256]).cuda()
             sam_point_coords[:q*len(total_pos_points)] = total_pos_points.repeat(q, 1)
             sam_point_coords[q*len(total_pos_points):] = total_pos_points[:r]
+            sam_input = [{'point_coords': sam_point_coords, 'point_labels': sam_point_labels}]
 
             # LBK SAM propagation - (2)
-            sam_input = [{'point_coords': sam_point_coords, 'point_labels': sam_point_labels}]
             _, upscaled_embedding_list, src_list\
             = self.sam.decode_from_embedding(image_embeddings, sam_input, multimask_output=True)
             outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, target_queries=None)
@@ -923,11 +1017,19 @@ class GeneralizedXdecoder(nn.Module):
             # pos_masks update
             pos_masks = self.prepare_next_spaital_mask(labels, pred_masks, pos_masks)
 
-        all_batch_shape_iou = torch.stack(all_batch_shape_iou)
-        processed_results = [{"mask_iou": all_batch_shape_iou[:,i]} for i in range(len(all_batch_shape_iou[0]))]
-        return processed_results
+            all_batch_shape_iou = torch.stack(all_batch_shape_iou)
+            processed_results = [{"mask_iou": all_batch_shape_iou[:,i]} for i in range(len(all_batch_shape_iou[0]))]
+            return processed_results
 
-    def prepare_next_spaital_mask(self, gt_masks, pred_masks, prev_pos_masks, topk=100):
+
+
+
+
+
+
+
+
+    def prepare_next_spaital_mask(self, gt_masks, pred_masks, prev_pos_masks):
         
         # dimension unsqueeze
         gt_masks = gt_masks.unsqueeze(0)
@@ -946,8 +1048,8 @@ class GeneralizedXdecoder(nn.Module):
         # conv implementation
         bs, ns, h, w = fn.shape
         mask_dt = (distance_transform((~F.pad(fn, pad=(1, 1, 1, 1), mode='constant', value=0)).float())[:,:,1:-1,1:-1]).reshape(bs*ns,-1)
-        idx_criterion = mask_dt.topk(k=topk, dim=-1)[1][list(range(pred_masks.shape[1])), 
-                                                        torch.randint(low=0, high=topk, size=(pred_masks.shape[1],))].cpu() # mask_dt.topk(k=10, dim=-1)[1]
+        # idx_criterion = mask_dt.topk(k=10, dim=-1)[1] # (best)
+        idx_criterion = torch.cat([(mask_dt[i] > 0).nonzero()[torch.randint(0, len((mask_dt[i] > 0).nonzero()), (1,))][0] for i in range(len(mask_dt))]).cpu() # (best random)
         max_xy_idx = torch.stack([torch.arange(bs*ns), idx_criterion]).tolist()
         next_mask = torch.zeros(gt_masks.shape).cuda().bool()
         next_mask = next_mask.view(bs*ns,-1)
@@ -963,16 +1065,14 @@ class GeneralizedXdecoder(nn.Module):
         merged_masks = torch.cat([pos_masks, next_masks.squeeze(0)], dim=0).unbind(0)
 
         # visualization  
-        # gt = gt_masks.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
-        # fnn = fn.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
-        # pred_mask = pred_masks.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
-        # pos_mask = pos_masks.permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
-        # new_mask = next_mask.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
-        # merged_mask = torch.cat([i.unsqueeze(0) for i in merged_masks], dim=0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
+        gt = gt_masks.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
+        fnn = fn.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
+        pred_mask = pred_masks.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
+        pos_mask = pos_masks.permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
+        new_mask = next_mask.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
+        merged_mask = torch.cat([i.unsqueeze(0) for i in merged_masks], dim=0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
 
         return merged_masks
-
-
 
 
     # VLP 

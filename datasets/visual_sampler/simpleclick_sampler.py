@@ -72,21 +72,6 @@ class SimpleClickSampler(nn.Module):
         next_mask = F.conv2d(next_mask[None,], self.dilation_kernel.repeat(len(next_mask),1,1,1), padding=self.dilation//2, groups=len(next_mask))[0] > 0
         # end conv implementation
 
-        # disk implementation
-        # mask_dt = distance_transform((~fp)[None,].float())[0].view(n,-1)
-        # max_xy = mask_dt.max(dim=-1)[1]
-        # max_y, max_x = max_xy//w, max_xy%w
-        # max_xy_idx = torch.stack([max_y, max_x]).transpose(0,1)[:,:,None,None]
-        # y_idx = torch.arange(start=0, end=h, step=1, dtype=torch.float32, device=torch.cuda.current_device())
-        # x_idx = torch.arange(start=0, end=w, step=1, dtype=torch.float32, device=torch.cuda.current_device())
-        # coord_y, coord_x = torch.meshgrid(y_idx, x_idx)
-        # coords = torch.stack((coord_y, coord_x), dim=0).unsqueeze(0).repeat(len(max_xy_idx),1,1,1) # [bsx2,2,h,w], corresponding to 2d coordinate
-        # coords.add_(-max_xy_idx)
-        # coords.mul_(coords)
-        # next_mask = coords[:, 0] + coords[:, 1]
-        # next_mask = (next_mask <= 5**2)
-        # end disk implementation
-
         rand_shapes = prev_masks | next_mask
 
         types = ['point' for i in range(len(gt_masks))]
@@ -205,36 +190,16 @@ class SimpleClickSampler(nn.Module):
     def forward_box(self, instances, pred_masks=None, prev_masks=None):
         gt_masks = instances.gt_masks.tensor
         gt_boxes = instances.gt_boxes.tensor
-        n,h,w = gt_masks.shape
+        rand_shapes = gt_masks.clone()
 
+        box_point_list = []
         for i in range(len(gt_masks)):
             x1,y1,x2,y2 = gt_boxes[i].int().unbind()
-            gt_masks[i,y1:y2,x1:x2] = 1
-
-        # We only consider positive points
-        pred_masks = torch.zeros(gt_masks.shape, device=torch.cuda.current_device()).bool() if pred_masks is None else pred_masks[:,:h,:w]
-        prev_masks = torch.zeros(gt_masks.shape, device=torch.cuda.current_device()).bool() if prev_masks is None else prev_masks
-
-        if not gt_masks.is_cuda:
-            gt_masks = gt_masks.to(pred_masks.device)
-
-        fp = gt_masks & (~(gt_masks & pred_masks)) & (~prev_masks)
-
-        # conv implementation
-        mask_dt = (distance_transform((~F.pad(fp[None,], pad=(1, 1, 1, 1), mode='constant', value=0)).float())[0,:,1:-1,1:-1]).reshape(n,-1)
-        max_xy_idx = torch.stack([torch.arange(n), mask_dt.max(dim=-1)[1].cpu()]).tolist()
-        next_mask = torch.zeros(gt_masks.shape, device=torch.cuda.current_device()).bool()
-        next_mask = next_mask.view(n,-1)
-
-        next_mask[max_xy_idx] = True
-        next_mask = next_mask.reshape((n,h,w)).float()
-        next_mask = F.conv2d(next_mask[None,], self.dilation_kernel.repeat(len(next_mask),1,1,1), padding=self.dilation//2, groups=len(next_mask))[0] > 0
-        # end conv implementation
-
-        rand_shapes = prev_masks | next_mask
+            box_point_list.append([x1,y1,x2,y2])
+            rand_shapes[i,y1:y2,x1:x2] = 1
 
         types = ['box' for i in range(len(gt_masks))]
-        return {'gt_masks': instances.gt_masks.tensor, 'rand_shape': rand_shapes[:,None], 'types': types}
+        return {'gt_masks': instances.gt_masks.tensor, 'box_points': box_point_list, 'rand_shape': rand_shapes, 'types': types}
 
     def forward(self, instances, *args, **kwargs):
         if self.mask_mode == 'Point':
@@ -247,6 +212,3 @@ class SimpleClickSampler(nn.Module):
             return self.forward_polygon(instances, *args, **kwargs)
         elif self.mask_mode == 'Box':
             return self.forward_box(instances, *args, **kwargs)
-
-def build_shape_sampler(cfg, **kwargs):
-    return ShapeSampler(cfg, **kwargs)
