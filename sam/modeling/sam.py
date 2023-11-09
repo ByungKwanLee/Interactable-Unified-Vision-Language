@@ -58,6 +58,11 @@ class Sam(nn.Module):
         
         input_images = torch.stack([x["image"] for x in batched_input], dim=0)
         image_embeddings, x_list = self.image_encoder(input_images)
+        
+        # prompting encodeing for flexible inputs
+        _, _, H, W = input_images.shape
+        self.prompt_encoder.input_image_size = (H, W)
+        self.prompt_encoder.image_embedding_size = (H//16, W//16)
 
         hyper_in_list = []
         upscaled_embedding_list = []

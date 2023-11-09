@@ -113,6 +113,7 @@ class XDecoder(nn.Module):
         
         # level embedding (we always use 3 scales)
         self.num_feature_levels = 3
+        self.level_indexes = [0,1,2] # LBK
         self.level_embed = nn.Embedding(self.num_feature_levels, hidden_dim)
         self.input_proj = nn.ModuleList()
         
@@ -152,7 +153,8 @@ class XDecoder(nn.Module):
         self.register_buffer("self_attn_mask", self_attn_mask)
 
         # LBK EDIT
-        self.sam_pler = nn.Conv3d(in_channels=32, out_channels=512, kernel_size=(1, 64, 64)) # 3D Conv
+        self.feature_size = 56
+        self.sam_pler = nn.Conv3d(in_channels=32, out_channels=512, kernel_size=(1, self.feature_size, self.feature_size)) # 3D Conv
         # self.sam_pler = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(1, 1)) # MLP
 
 
@@ -203,7 +205,7 @@ class XDecoder(nn.Module):
         # embedding tensor
         visual_query_list = []
         for upscaled_embedding in upscaled_embedding_list:
-            interp_upscaled_embedding = F.interpolate(upscaled_embedding, size=(64, 64), mode='bilinear') # 3D Conv
+            interp_upscaled_embedding = F.interpolate(upscaled_embedding, size=(self.feature_size, self.feature_size), mode='bilinear') # 3D Conv
             out = self.sam_pler(interp_upscaled_embedding.transpose(0, 1).contiguous().unsqueeze(0)).squeeze(3, 4).permute(2, 0, 1) # 3D Conv
             # out = self.sam_pler(upscaled_embedding.contiguous()).mean(dim=(2,3)).unsqueeze(1) # MLP (GAP)
             visual_query_list.append(out)
@@ -282,17 +284,16 @@ class XDecoder(nn.Module):
             predictions_image_feat.append(decoder_output[:self.num_queries-1].transpose(0, 1))
         
         for i in range(self.num_layers):
-            level_index = i % self.num_feature_levels
             attn_mask[torch.where(attn_mask.sum(-1) == attn_mask.shape[-1])] = False
 
             if (self.training and task == 'vlp' and self.task_switch['captioning']):
                 attn_mask = torch.cat((attn_mask, torch.zeros_like(attn_mask[:, :self.contxt_len, :])), dim=1)
             # attention: cross-attention first
             output, avg_attn = self.transformer_cross_attention_layers[i](
-                output, src[level_index],
+                output, src[self.level_indexes[i]],
                 memory_mask=attn_mask,
                 memory_key_padding_mask=None,  # here we do not apply masking on padded region
-                pos=pos[level_index], query_pos=query_embed
+                pos=pos[self.level_indexes[i]], query_pos=query_embed
             )
 
             if (((self.training and task == 'seg') or (task == 'grounding_eval')) and self.task_switch['grounding']):
@@ -358,7 +359,7 @@ class XDecoder(nn.Module):
         # embedding tensor
         visual_query_list = []
         for upscaled_embedding in upscaled_embedding_list:
-            interp_upscaled_embedding = F.interpolate(upscaled_embedding, size=(64, 64), mode='bilinear') # 3D Conv
+            interp_upscaled_embedding = F.interpolate(upscaled_embedding, size=(self.feature_size, self.feature_size), mode='bilinear') # 3D Conv
             out = self.sam_pler(interp_upscaled_embedding.transpose(0, 1).contiguous().unsqueeze(0)).squeeze(3, 4).permute(2, 0, 1) # 3D Conv
             # out = self.sam_pler(upscaled_embedding.contiguous()).mean(dim=(2,3)).unsqueeze(1) # MLP (GAP)
             visual_query_list.append(out)
@@ -404,7 +405,6 @@ class XDecoder(nn.Module):
             attn_mask = results["attn_mask"]
         
             for i in range(self.num_layers):
-                level_index = i % self.num_feature_levels
                 attn_mask[torch.where(attn_mask.sum(-1) == attn_mask.shape[-1])] = False
                 attn_mask = torch.cat((attn_mask, torch.zeros_like(attn_mask[:, :self.contxt_len, :])), dim=1)
                 self_tgt_mask = self.self_attn_mask.repeat(output.shape[1]*self.num_heads, 1, 1)
@@ -420,10 +420,10 @@ class XDecoder(nn.Module):
                 
                 # attention: cross-attention first
                 output, avg_attn = self.transformer_cross_attention_layers[i](
-                    output, src[level_index],
+                    output, src[self.level_indexes[i]],
                     memory_mask=attn_mask,
                     memory_key_padding_mask=None,  # here we do not apply masking on padded region
-                    pos=pos[level_index], query_pos=query_embed
+                    pos=pos[self.level_indexes[i]], query_pos=query_embed
                 )
 
                 output = self.transformer_self_attention_layers[i](

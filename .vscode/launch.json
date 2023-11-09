@@ -92,7 +92,7 @@
 //             "SOLVER.LR_MULTIPLIER.lang_encoder", "0.1", 
 //             "WEIGHT", "True", 
 //             "RESUME_FROM", 
-//             "/mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt"],
+//             "/mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt"],
 //         }
 //     ]
 // }
@@ -142,7 +142,7 @@
 //             "SOLVER.LR_MULTIPLIER.lang_encoder", "0.1", 
 //             "WEIGHT", "True", 
 //             "RESUME_FROM", 
-//             "/mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt"],
+//             "/mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt"],
             
 //         }
 //     ]
