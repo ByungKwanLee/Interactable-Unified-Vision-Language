@@ -6,7 +6,7 @@ length=${#GPU_DEVICE}
 port=$(($RANDOM%10000+30000))
 n_gpu=$(((length+1)/2))
 image_bath=4
-lang_batch=20
+lang_batch=16
 
 CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             --conf_files configs/step1_vlp.yaml \
@@ -14,7 +14,7 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             FP16 True \
             PORT $port \
             SAVE_DIR ckpt/ \
-            WANDB False \
+            WANDB True \
             MODEL.DECODER.HIDDEN_DIM 512 \
             MODEL.ENCODER.CONVS_DIM 512 \
             MODEL.ENCODER.MASK_DIM 512 \

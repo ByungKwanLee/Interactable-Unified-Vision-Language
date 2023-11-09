@@ -83,8 +83,6 @@ class GeneralizedXdecoder(nn.Module):
             sam = build_sam.sam_model_registry['vit_l'](checkpoint='sam/ckpt/sam_vit_l_0b3195.pth', custom_img_size=self.img_resolution)
         elif sam_size=='huge':
             sam = build_sam.sam_model_registry['vit_h'](checkpoint='sam/ckpt/sam_vit_h_4b8939.pth', custom_img_size=self.img_resolution)
-        self.input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * self.img_resolution, dtype=torch.int64).cuda()
-        self.input_label = torch.tensor([1 for _ in range(self.input_point.shape[0])]).cuda()
 
         # LBK build LLM
         if load_llm:
@@ -354,11 +352,13 @@ class GeneralizedXdecoder(nn.Module):
             extra['grounding_tokens'] = grounding_tokens
         
         # LBK SAM propagation
+        input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+        input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
         sam_input = [
             {
                 'image': i,
-                'point_coords': self.input_point,
-                'point_labels': self.input_label,
+                'point_coords': input_point,
+                'point_labels': input_label,
             } for i in images
         ] 
         x_list, _, upscaled_embedding_list, src_list\
@@ -416,11 +416,13 @@ class GeneralizedXdecoder(nn.Module):
                  "training": self.training}
 
        # LBK SAM propagation
+        input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+        input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
         sam_input = [
             {
                 'image': i,
-                'point_coords': self.input_point,
-                'point_labels': self.input_label,
+                'point_coords': input_point,
+                'point_labels': input_label,
             } for i in images
         ] 
         x_list, _, upscaled_embedding_list, src_list\
@@ -468,11 +470,13 @@ class GeneralizedXdecoder(nn.Module):
                  "training": self.training}
 
        # LBK SAM propagation
+        input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+        input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
         sam_input = [
             {
                 'image': i,
-                'point_coords': self.input_point,
-                'point_labels': self.input_label,
+                'point_coords': input_point,
+                'point_labels': input_label,
             } for i in images
         ] 
         x_list, _, upscaled_embedding_list, src_list\
@@ -497,11 +501,13 @@ class GeneralizedXdecoder(nn.Module):
         targets = targets_grounding = queries_grounding = None
         
         # LBK SAM propagation
+        input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+        input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
         sam_input = [
             {
                 'image': i,
-                'point_coords': self.input_point,
-                'point_labels': self.input_label,
+                'point_coords': input_point,
+                'point_labels': input_label,
             } for i in images
         ] 
         x_list, _, upscaled_embedding_list, src_list\
@@ -571,11 +577,13 @@ class GeneralizedXdecoder(nn.Module):
         targets = targets_grounding = queries_grounding = None
         
         # LBK SAM propagation
+        input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+        input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
         sam_input = [
             {
                 'image': i,
-                'point_coords': self.input_point,
-                'point_labels': self.input_label,
+                'point_coords': input_point,
+                'point_labels': input_label,
             } for i in images
         ] 
         x_list, _, upscaled_embedding_list, src_list\
@@ -622,11 +630,13 @@ class GeneralizedXdecoder(nn.Module):
         images = (images - self.pixel_mean) / self.pixel_std
         
         # LBK SAM propagation
+        input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+        input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
         sam_input = [
             {
                 'image': i,
-                'point_coords': self.input_point,
-                'point_labels': self.input_label,
+                'point_coords': input_point,
+                'point_labels': input_label,
             } for i in images
         ] 
 
@@ -665,11 +675,13 @@ class GeneralizedXdecoder(nn.Module):
                  "lang_encoder": self.sem_seg_head.predictor.lang_encoder,
                  "training": self.training}
         # LBK SAM propagation
+        input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+        input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
         sam_input = [
             {
                 'image': i,
-                'point_coords': self.input_point,
-                'point_labels': self.input_label,
+                'point_coords': input_point,
+                'point_labels': input_label,
             } for i in images
         ] 
 
@@ -721,11 +733,14 @@ class GeneralizedXdecoder(nn.Module):
                  "lang_encoder": self.sem_seg_head.predictor.lang_encoder,
                  "training": self.training}
         
+        # LBK SAM propagation
+        input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+        input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
         sam_input = [
             {
                 'image': i,
-                'point_coords': self.input_point,
-                'point_labels': self.input_label,
+                'point_coords': input_point,
+                'point_labels': input_label,
             } for i in images
         ] 
 
@@ -767,11 +782,13 @@ class GeneralizedXdecoder(nn.Module):
         images = (images - self.pixel_mean) / self.pixel_std
         
         # LBK SAM propagation
+        input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+        input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
         sam_input = [
             {
                 'image': i,
-                'point_coords': self.input_point,
-                'point_labels': self.input_label,
+                'point_coords': input_point,
+                'point_labels': input_label,
             } for i in images
         ] 
         
@@ -793,11 +810,13 @@ class GeneralizedXdecoder(nn.Module):
         images = (images - self.pixel_mean) / self.pixel_std
         
         # LBK SAM propagation
+        input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+        input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
         sam_input = [
             {
                 'image': i,
-                'point_coords': self.input_point,
-                'point_labels': self.input_label,
+                'point_coords': input_point,
+                'point_labels': input_label,
             } for i in images
         ] 
         x_list, _, upscaled_embedding_list, src_list\
