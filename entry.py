@@ -9,6 +9,8 @@ import os
 import sys
 import torch
 import wandb
+import torch.multiprocessing
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 from utils.arguments import load_opt_command
 

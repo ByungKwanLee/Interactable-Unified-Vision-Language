@@ -9,7 +9,7 @@
 DATASETS:
   TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "vlp_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  TEST: ["ade20k_panoptic_val", "refcocog_val_umd", "vlp_val"] # ["pascalvoc_val_Point"]
+  TEST: ["coco_2017_val_panoptic_with_sem_seg", "refcocog_val_umd", "vlp_val"] # ["pascalvoc_val_Point"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
@@ -18,7 +18,7 @@ Load_LLM: false
 
 # SAM Image Resolution
 IMG_RESOLUTION: 1024
-NUM_GRIDS_HORIZON: 16
+NUM_GRIDS_HORIZON: 10
 SAM_SIZE: 'base' # base/large/huge
 
 # Detectron2 training config for optimizer and lr scheduler
@@ -257,7 +257,7 @@ VLP:
 # Instruction FT Dataset
 INSTRUCT:
   INPUT:
-    IMAGE_SIZE: 256
+    IMAGE_SIZE: 1024
     DATASET_MAPPER_NAME: "instruction_train"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
@@ -281,7 +281,7 @@ INSTRUCT:
   # Instruction FT Dataset
 INSTP:
   INPUT:
-    IMAGE_SIZE: 256
+    IMAGE_SIZE: 1024
     DATASET_MAPPER_NAME: "instp_train"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
@@ -444,7 +444,7 @@ CITY:
 # VQAv2 Dataset
 VQA:
   INPUT:
-    IMAGE_SIZE: 256
+    IMAGE_SIZE: 1024
     DATASET_MAPPER_NAME: "vqav2_train"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False

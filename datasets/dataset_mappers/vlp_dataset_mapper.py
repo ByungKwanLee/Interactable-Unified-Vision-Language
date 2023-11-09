@@ -117,7 +117,7 @@ class VLPreDatasetMapper:
             "tfm_gens": tfm_gens,
             "image_format": cfg['INPUT']['FORMAT'],
             "tokenizer": tokenizer,
-            "max_token_num": 256,
+            "max_token_num": 77,
             "device": device,
         }
         return ret

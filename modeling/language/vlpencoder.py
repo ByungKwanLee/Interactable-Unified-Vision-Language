@@ -67,7 +67,7 @@ class LanguageEncoder(nn.Module):
             "tokenizer_type": tokenizer_type,
             "lang_encoder": lang_encoder,
             "lang_projection": lang_projection,
-            "max_token_num": 256,
+            "max_token_num": 77,
             "queue_operator": queue_operator,
         }
 

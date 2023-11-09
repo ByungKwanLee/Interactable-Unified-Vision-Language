@@ -17,8 +17,8 @@ DATASETS:
 Load_LLM: true
 
 # SAM Image Resolution
-IMG_RESOLUTION: 256
-NUM_GRIDS_HORIZON: 16
+IMG_RESOLUTION: 1024
+NUM_GRIDS_HORIZON: 10
 SAM_SIZE: 'base' # base/large/huge
 
 # Detectron2 training config for optimizer and lr scheduler
@@ -177,7 +177,7 @@ MODEL:
     TRAIN_NUM_POINTS: 12544
     OVERSAMPLE_RATIO: 3.0
     IMPORTANCE_SAMPLE_RATIO: 0.75
-    DEC_LAYERS: 10  # 9 decoder layers, add one for the loss on learnable query
+    DEC_LAYERS: 4  # 9 decoder layers, add one for the loss on learnable query
     TOP_GROUNDING_LAYERS: 3
     TOP_CAPTION_LAYERS: 3
     TOP_CAPTIONING_LAYERS: 3
@@ -197,7 +197,7 @@ COCO:
     MIN_SIZE_TRAIN_SAMPLING: 'choice'
     MIN_SIZE_TEST: 800
     MAX_SIZE_TEST: 1333
-    IMAGE_SIZE: 256
+    IMAGE_SIZE: 1024
     MIN_SCALE: 0.1
     MAX_SCALE: 2.0
     DATASET_MAPPER_NAME: "coco_panoptic_lsj"
@@ -234,7 +234,7 @@ COCO:
 
 VLP:
   INPUT:
-    IMAGE_SIZE: 256
+    IMAGE_SIZE: 224
     DATASET_MAPPER_NAME: "vlpretrain"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
@@ -258,7 +258,7 @@ VLP:
 # Instruction FT Dataset
 INSTRUCT:
   INPUT:
-    IMAGE_SIZE: 256
+    IMAGE_SIZE: 1024
     DATASET_MAPPER_NAME: "instruction_train"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
@@ -282,7 +282,7 @@ INSTRUCT:
 # Instruction FT Dataset
 INSTP:
   INPUT:
-    IMAGE_SIZE: 256
+    IMAGE_SIZE: 1024
     DATASET_MAPPER_NAME: "instp_train"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False

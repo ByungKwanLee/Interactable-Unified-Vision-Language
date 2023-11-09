@@ -170,8 +170,8 @@ class XDecoder(nn.Module):
 
         ret["hidden_dim"] = dec_cfg['HIDDEN_DIM']
         ret["dim_proj"] = cfg['MODEL']['DIM_PROJ']
-        ret["num_queries"] = 256+1
-        ret["contxt_len"] = 256
+        ret["num_queries"] = 100+1
+        ret["contxt_len"] = 77
 
         # Transformer parameters:
         ret["nheads"] = dec_cfg['NHEADS']
@@ -225,7 +225,7 @@ class XDecoder(nn.Module):
 
         _, bs, _ = src[0].shape
 
-        # QxNxC (Q=100+1 -> Q=256+1)
+        # QxNxC (Q=100+1)
         query_embed = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1) # positional embedding [101, B, 512]
         output = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1) # learnable feature [101, B, 512]
         query_embed[:-1, ...] += visual_queries 

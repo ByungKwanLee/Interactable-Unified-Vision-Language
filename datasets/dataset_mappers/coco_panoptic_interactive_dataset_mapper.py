@@ -167,7 +167,7 @@ class COCOPanopticInteractiveDatasetMapper:
             "max_grounding_num": cfg['MODEL']['DECODER']['GROUNDING']['MAX_LEN'],
             "shape_sampler": shape_sampler,
             "retrieval": retrieval,
-            "max_token_num": 256,
+            "max_token_num": 77,
             "tokenizer": tokenizer,
         }
         return ret

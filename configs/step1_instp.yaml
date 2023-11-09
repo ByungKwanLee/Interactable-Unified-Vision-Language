@@ -17,8 +17,8 @@ DATASETS:
 Load_LLM: false
 
 # SAM Image Resolution
-IMG_RESOLUTION: 256
-NUM_GRIDS_HORIZON: 16
+IMG_RESOLUTION: 1024
+NUM_GRIDS_HORIZON: 10
 SAM_SIZE: 'base' # base/large/huge
 
 # Detectron2 training config for optimizer and lr scheduler
@@ -176,7 +176,7 @@ MODEL:
     TRAIN_NUM_POINTS: 12544
     OVERSAMPLE_RATIO: 3.0
     IMPORTANCE_SAMPLE_RATIO: 0.75
-    DEC_LAYERS: 10  # 9 decoder layers, add one for the loss on learnable query
+    DEC_LAYERS: 4  # 9 decoder layers, add one for the loss on learnable query
     TOP_GROUNDING_LAYERS: 3
     TOP_CAPTION_LAYERS: 3
     TOP_CAPTIONING_LAYERS: 3
@@ -331,8 +331,8 @@ DATALOADER:
 # Evaluation Dataset
 VOC:
   INPUT:
-    MIN_SIZE_TEST: 1000
-    MAX_SIZE_TEST: 1024
+    MIN_SIZE_TEST: 800
+    MAX_SIZE_TEST: 1333
   DATALOADER:
     FILTER_EMPTY_ANNOTATIONS: False
     NUM_WORKERS: 0

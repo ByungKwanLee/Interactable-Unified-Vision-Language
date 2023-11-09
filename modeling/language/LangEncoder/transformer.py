@@ -209,7 +209,7 @@ class Transformer(nn.Module):
 @register_lang_encoder
 def lang_encoder(config_encoder, tokenizer, verbose, **kwargs):
     transformer = Transformer(
-        context_length=256,
+        context_length=77,
         vocab_size=tokenizer.vocab_size,
         width=config_encoder['WIDTH'],
         layers=config_encoder['LAYERS'],

@@ -238,7 +238,7 @@ class GeneralizedXdecoder(nn.Module):
             "sem_seg_head": sem_seg_head,
             "criterion": criterion,
             "losses": losses,
-            "num_queries": 256+1,
+            "num_queries": 100+1,
             "object_mask_threshold": dec_cfg['TEST']['OBJECT_MASK_THRESHOLD'],
             "overlap_threshold": dec_cfg['TEST']['OVERLAP_THRESHOLD'],
             "metadata": MetadataCatalog.get(cfg['DATASETS']['TRAIN'][0]),
@@ -641,7 +641,7 @@ class GeneralizedXdecoder(nn.Module):
         ] 
 
         if not hasattr(self, 'start_token'):
-            self.start_token = torch.tensor([[49406]*256], device=self.device)
+            self.start_token = torch.tensor([[49406]*77], device=self.device)
         
         targets = targets_grounding = queries_grounding = None
 
@@ -686,7 +686,7 @@ class GeneralizedXdecoder(nn.Module):
         ] 
 
         if not hasattr(self, 'start_token'):
-            self.start_token = torch.tensor([[49406]*256], device=self.device)
+            self.start_token = torch.tensor([[49406]*77], device=self.device)
         
         targets = targets_grounding = queries_grounding = None
 
@@ -913,11 +913,11 @@ class GeneralizedXdecoder(nn.Module):
                 mask2point = lambda x: torch.stack([torch.tensor([b, a]) for a, b in zip(*x)])[4,:].unsqueeze(0)
                 pos_points = [mask2point(torch.where(x==True)) for x in pos_masks]
                 total_pos_points = torch.cat(pos_points, dim=0)
-                assert len(total_pos_points) <= 256, "only support total pos points <= 256"
+                assert len(total_pos_points) <= 100, "only support total pos points <= 100"
                 q = 16**2 // len(total_pos_points)
                 r = 16**2 % len(total_pos_points)
-                sam_point_coords = torch.zeros([256, 2]).cuda()
-                sam_point_labels = torch.ones([256]).cuda()
+                sam_point_coords = torch.zeros([100, 2]).cuda()
+                sam_point_labels = torch.ones([100]).cuda()
                 sam_point_coords[:q*len(total_pos_points)] = total_pos_points.repeat(q, 1)
                 sam_point_coords[q*len(total_pos_points):] = total_pos_points[:r]
                 sam_input = [{'point_coords': sam_point_coords, 'point_labels': sam_point_labels}]
@@ -957,10 +957,10 @@ class GeneralizedXdecoder(nn.Module):
             sam_boxes = torch.tensor([list(map(int, box_point)) for box_point in box_points]).cuda()
             
 
-            assert len(sam_boxes) <= 256, "only support total boxes <= 256"
+            assert len(sam_boxes) <= 100, "only support total boxes <= 100"
             q = 16**2 // len(sam_boxes)
             r = 16**2 % len(sam_boxes)
-            sam_box_coords = torch.zeros([256, 4]).cuda()
+            sam_box_coords = torch.zeros([100, 4]).cuda()
             sam_box_coords[:q*len(sam_boxes)] = sam_boxes.repeat(q, 1)
             sam_box_coords[q*len(sam_boxes):] = sam_boxes[:r]
             sam_input = [{'boxes': sam_box_coords}]
@@ -1001,11 +1001,11 @@ class GeneralizedXdecoder(nn.Module):
             mask2point = lambda x: torch.stack([torch.tensor([b, a]) for a, b in zip(*x)])[4,:].unsqueeze(0)
             pos_points = [mask2point(torch.where(x==True)) for x in pos_masks]
             total_pos_points = torch.cat(pos_points, dim=0)
-            assert len(total_pos_points) <= 256, "only support total pos points <= 256"
+            assert len(total_pos_points) <= 100, "only support total pos points <= 100"
             q = 16**2 // len(total_pos_points)
             r = 16**2 % len(total_pos_points)
-            sam_point_coords = torch.zeros([256, 2]).cuda()
-            sam_point_labels = torch.ones([256]).cuda()
+            sam_point_coords = torch.zeros([100, 2]).cuda()
+            sam_point_labels = torch.ones([100]).cuda()
             sam_point_coords[:q*len(total_pos_points)] = total_pos_points.repeat(q, 1)
             sam_point_coords[q*len(total_pos_points):] = total_pos_points[:r]
             sam_input = [{'point_coords': sam_point_coords, 'point_labels': sam_point_labels}]
