@@ -9,7 +9,7 @@
 DATASETS:
   TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "vlp_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  TEST: ["refcocog_val_umd", "vlp_val"] # ["pascalvoc_val_Point"]
+  TEST: ["ade20k_panoptic_val", "refcocog_val_umd", "vlp_val"] # ["pascalvoc_val_Point"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
@@ -249,7 +249,7 @@ VLP:
     BATCH_SIZE_TOTAL: 8
   DATALOADER:
     FILTER_EMPTY_ANNOTATIONS: False
-    NUM_WORKERS: 8
+    NUM_WORKERS: 4
     LOAD_PROPOSALS: False
     SAMPLER_TRAIN: "TrainingSampler"
     ASPECT_RATIO_GROUPING: True
