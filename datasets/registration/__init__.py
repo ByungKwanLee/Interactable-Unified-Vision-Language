@@ -11,6 +11,7 @@ from . import (
     register_vlp_datasets,
     register_instruction_datasets,
     register_instp_datasets,
+    register_vqa_datasets,
     register_sunrgbd_semseg,
     register_scannet_semseg,
     register_bdd100k_semseg,

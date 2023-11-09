@@ -323,12 +323,16 @@ class GeneralizedXdecoder(nn.Module):
                 return self.evaluate_retrieval(batched_inputs)
             elif mode == 'captioning':
                 return self.evaluate_captioning(batched_inputs)
+            elif mode == 'llm_captioning':
+                return self.evaluate_llm_captioning(batched_inputs)
             elif mode == 'classification':
                 return self.evaluate_classification(batched_inputs)
             elif mode == 'grounding_refcoco':
                 return self.evaluate_grounding(batched_inputs)
             elif mode == 'interactive':
                 return self.evaluate_interactive(batched_inputs)
+            elif mode == 'vqa':
+                return self.evaluate_vqa(batched_inputs)
             else:
                 return self.evaluate(batched_inputs)
 
@@ -651,6 +655,111 @@ class GeneralizedXdecoder(nn.Module):
             processed_results[-1]["captioning_text"] = outputs['pred_texts'][idx].split('.')[0]
             processed_results[-1]["image_id"] = batched_inputs[idx]['image_id']
             
+        return processed_results
+    
+    def evaluate_llm_captioning(self, batched_inputs):
+        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
+        images = (images - self.pixel_mean) / self.pixel_std
+
+        extra = {"token_embedding": self.sem_seg_head.predictor.lang_encoder.lang_encoder.token_embedding,
+                 "lang_encoder": self.sem_seg_head.predictor.lang_encoder,
+                 "training": self.training}
+        # LBK SAM propagation
+        sam_input = [
+            {
+                'image': i,
+                'point_coords': self.input_point,
+                'point_labels': self.input_label,
+            } for i in images
+        ] 
+
+        if not hasattr(self, 'start_token'):
+            self.start_token = torch.tensor([[49406]*256], device=self.device)
+        
+        targets = targets_grounding = queries_grounding = None
+
+        captioning_mask = None
+        if 'captioning_mask' in batched_inputs[-1]:
+            captioning_mask = torch.cat([x['captioning_mask'] for x in batched_inputs])
+
+
+        # LBK SAM propagation
+        x_list, _, upscaled_embedding_list, src_list\
+        = self.sam(sam_input, multimask_output=True)
+        outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, 
+                                    target_queries=queries_grounding, task='llm', extra=extra)
+
+        processed_results = []
+        for idx, batch_data in enumerate(batched_inputs):
+            input_ids = batch_data['tokens']['prompt_ids']
+
+            with torch.inference_mode():
+                output_ids = self.llm.generate(
+                    input_ids=input_ids,
+                    images=self.img_to_lang(outputs['image_feature'][-1]),
+                    max_new_tokens=128,
+                    min_length=1,
+                    num_beams=5)
+            
+            input_token_len = input_ids.shape[1]
+            n_diff_input_output = (input_ids != output_ids[:, :input_token_len]).sum().item()
+            if n_diff_input_output > 0:
+                print(f'[Warning] {n_diff_input_output} output_ids are not the same as the input_ids')
+            llm_outputs = self.llm_tokenizer.batch_decode(output_ids[:, input_token_len:], skip_special_tokens=True)[0]
+            llm_outputs = llm_outputs.strip()
+
+            processed_results.append({"captioning_token": output_ids,
+                                    "captioning_text": llm_outputs.split('.')[0],
+                                    "image_id": batch_data['image_id']})
+        return processed_results
+    
+    def evaluate_vqa(self, batched_inputs):
+        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
+        images = (images - self.pixel_mean) / self.pixel_std
+
+        extra = {"token_embedding": self.sem_seg_head.predictor.lang_encoder.lang_encoder.token_embedding,
+                 "lang_encoder": self.sem_seg_head.predictor.lang_encoder,
+                 "training": self.training}
+        
+        sam_input = [
+            {
+                'image': i,
+                'point_coords': self.input_point,
+                'point_labels': self.input_label,
+            } for i in images
+        ] 
+
+        # LBK SAM propagation
+        x_list, _, upscaled_embedding_list, src_List\
+        = self.sam(sam_input, multimask_output=True)
+        outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_List, 
+                                    target_queries=None, task='vqa', target_vlp=None, extra=extra)
+
+        
+        processed_results = []
+        for i, batch_data in enumerate(batched_inputs):
+            idx = batch_data["question_ids"][0]
+            cur_prompt = batch_data["captions"][0]
+            input_ids = batch_data['tokens']['input_ids']
+
+            with torch.inference_mode():
+                output_ids = self.llm.generate(
+                    input_ids=input_ids,
+                    images=self.img_to_lang(outputs['image_feature'][-1]),
+                    max_new_tokens=10,
+                    min_length=1,
+                    num_beams=5)
+            
+            input_token_len = input_ids.shape[1]
+            n_diff_input_output = (input_ids != output_ids[:, :input_token_len]).sum().item()
+            if n_diff_input_output > 0:
+                print(f'[Warning] {n_diff_input_output} output_ids are not the same as the input_ids')
+            llm_outputs = self.llm_tokenizer.batch_decode(output_ids[:, input_token_len:], skip_special_tokens=True)[0]
+            llm_outputs = llm_outputs.strip()
+
+            processed_results.append({"question_id": idx,
+                                    "prompt": cur_prompt,
+                                    "text": llm_outputs})
         return processed_results
 
     def evaluate_classification(self, batched_inputs):

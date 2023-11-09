@@ -41,6 +41,7 @@ from .evaluation import (InstanceSegEvaluator,
                          ClassificationEvaluator, 
                          SemSegEvaluator, 
                          RetrievalEvaluator, 
+                         VQAEvaluator, 
                          CaptioningEvaluator, 
                          COCOPanopticEvaluator,
                          GroundingEvaluator,
@@ -343,9 +344,6 @@ def get_config_from_name(cfg, dataset_name):
     elif 'vlp' in dataset_name:
         cfg.update(cfg['VLP'])
         return cfg
-    elif 'instruction' in dataset_name:
-        cfg.update(cfg['INSTRUCT'])
-        return cfg
     elif 'coco' in dataset_name:
         if 'COCO' in cfg.keys():
             cfg.update(cfg['COCO'])
@@ -401,6 +399,9 @@ def get_config_from_name(cfg, dataset_name):
     elif 'instp' in dataset_name:
         cfg.update(cfg['INSTP'])
         return cfg
+    elif 'vqa' in dataset_name:
+        cfg.update(cfg['VQA'])
+        return cfg
     else:
         assert False, "dataset not support."
 
@@ -420,6 +421,8 @@ def build_eval_dataloader(cfg, ):
             mapper = InstructionDatasetMapper(cfg, False, dataset_name)
         elif dataset_name in ["instp_val", "instp_captioning_val", "instp_val2017", "instp_captioning_val2017"]:
             mapper = InstPreDatasetMapper(cfg, False, dataset_name)
+        elif dataset_name in ["vqav2_test", "vqav2_test-dev", "vqav2_val"]:
+            mapper = VQADatasetMapper(cfg, False, dataset_name)
         elif dataset_name in ["scannet_21_val_seg", "scannet_38_val_seg", "scannet_41_val_seg"]:
             mapper = ScanNetSegDatasetMapper(cfg, False)
         elif dataset_name in ["scannet_21_panoptic_val", 'bdd10k_40_panoptic_val']:
@@ -572,6 +575,9 @@ def build_evaluator(cfg, dataset_name, output_folder=None):
         evaluator_list.append(RetrievalEvaluator(dataset_name, output_folder, cfg['MODEL']['DECODER']['RETRIEVAL']['ENSEMBLE']))
     if evaluator_type == "captioning":
         evaluator_list.append(CaptioningEvaluator(dataset_name, output_folder, MetadataCatalog.get(dataset_name).gt_json))
+    # VQAv2
+    if evaluator_type == "vqa":
+        evaluator_list.append(VQAEvaluator(dataset_name, output_dir=output_folder))
     if evaluator_type in ["grounding_refcoco", "grounding_phrasecut", "grounding_spatial", "grounding_entity"]:
         evaluator_list.append(GroundingEvaluator(dataset_name))
     # Interactive

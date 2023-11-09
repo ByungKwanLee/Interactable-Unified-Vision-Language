@@ -21,6 +21,8 @@ from detectron2.data import MetadataCatalog
 from modeling.language.LangEncoder import build_tokenizer
 from modeling.utils import configurable
 
+from modeling.language.LangEncoder.constant import DEFAULT_IMAGE_TOKEN
+
 
 __all__ = ["VLPreDatasetMapper"]
 
@@ -96,6 +98,10 @@ class VLPreDatasetMapper:
         self.tokenizer = tokenizer
         self.max_token_num = max_token_num
         self.device = device
+        
+        self.prompt = "A chat between a curious user and an artificial intelligence assistant.\nThe assistant gives helpful, detailed, and polite answers to the user's questions." + DEFAULT_IMAGE_TOKEN + "\nProvide a one-sentence caption for the provided image."
+        self.prompt_ids = self.tokenizer(self.prompt, truncation=True, max_length=self.max_token_num, return_tensors='pt').input_ids
+
 
     @classmethod
     def from_config(cls, cfg, is_train=True, dataset_name=None):
@@ -150,5 +156,5 @@ class VLPreDatasetMapper:
         tokens = self.tokenizer(
             captions, padding='max_length', truncation=True, max_length=self.max_token_num, return_tensors='pt'
         )
-        dataset_dict['tokens'] = {"input_ids": tokens["input_ids"], "attention_mask": tokens["attention_mask"]}
+        dataset_dict['tokens'] = {"input_ids": tokens["input_ids"], "attention_mask": tokens["attention_mask"], "prompt_ids": self.prompt_ids}
         return dataset_dict

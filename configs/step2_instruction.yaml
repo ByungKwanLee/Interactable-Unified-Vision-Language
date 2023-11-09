@@ -8,17 +8,45 @@
 # Datasets
 DATASETS:
   TRAIN: ["instruction_train"] # instruction_train / instp_train / vlp_train
-  TEST: ["refcocog_val_umd", "vlp_val"]
+  # open vocabulary segmentation evaluation.
+  TEST: ["vqav2_val"] # ["pascalvoc_val_Point"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
-
 # LLM
-Load_LLM: false
+Load_LLM: true
 
 # SAM Image Resolution
 IMG_RESOLUTION: 256
 NUM_GRIDS_HORIZON: 16
+SAM_SIZE: 'base' # base/large/huge
+
+# Detectron2 training config for optimizer and lr scheduler
+SOLVER:
+  BASE_LR: 0.0001
+  STEPS: [0.6, 0.8] #[0.88889, 0.96296]
+  MAX_ITER: 1
+  GAMMA: 0.1
+  WARMUP_FACTOR: 1.0
+  WARMUP_ITERS: 10
+  WARMUP_METHOD: "linear"
+  WEIGHT_DECAY: 0.05
+  OPTIMIZER: "ADAMW"
+  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
+  LR_MULTIPLIER:
+    backbone: 0.1
+    lang_encoder: 0.1
+  WEIGHT_DECAY_NORM: 0.0
+  WEIGHT_DECAY_EMBED: 0.0
+  CLIP_GRADIENTS:
+    ENABLED: True
+    CLIP_TYPE: "full_model"
+    CLIP_VALUE: 5.0 # 0.01
+    NORM_TYPE: 2.0
+  AMP:
+    ENABLED: True
+  MAX_NUM_EPOCHS: 10 #50
+
 
 # Define Test/Trainer/Saving
 PIPELINE: XDecoderPipeline
@@ -301,32 +329,6 @@ DATALOADER:
   SAMPLER_TRAIN: "TrainingSampler"
   ASPECT_RATIO_GROUPING: True
 
-# Detectron2 training config for optimizer and lr scheduler
-SOLVER:
-  BASE_LR: 0.0001
-  STEPS: [0.6, 0.8] #[0.88889, 0.96296]
-  MAX_ITER: 1
-  GAMMA: 0.1
-  WARMUP_FACTOR: 1.0
-  WARMUP_ITERS: 10
-  WARMUP_METHOD: "linear"
-  WEIGHT_DECAY: 0.05
-  OPTIMIZER: "ADAMW"
-  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
-  LR_MULTIPLIER:
-    backbone: 0.1
-    lang_encoder: 0.1
-  WEIGHT_DECAY_NORM: 0.0
-  WEIGHT_DECAY_EMBED: 0.0
-  CLIP_GRADIENTS:
-    ENABLED: True
-    CLIP_TYPE: "full_model"
-    CLIP_VALUE: 5.0 # 0.01
-    NORM_TYPE: 2.0
-  AMP:
-    ENABLED: True
-  MAX_NUM_EPOCHS: 10 #50
-
 # Evaluation Dataset
 ADE20K:
   INPUT:
@@ -440,6 +442,36 @@ CITY:
   DATALOADER:
     FILTER_EMPTY_ANNOTATIONS: True
     NUM_WORKERS: 4
+
+# VQAv2 Dataset
+VQA:
+  INPUT:
+    IMAGE_SIZE: 256
+    DATASET_MAPPER_NAME: "vqav2_train"
+    IGNORE_VALUE: 255
+    COLOR_AUG_SSD: False
+    SIZE_DIVISIBILITY: 32
+    MASK_FORMAT: "polygon"
+    FORMAT: "RGB"
+    CROP:
+      ENABLED: True
+    NUM_CLASSES: 3129
+  TRAIN:
+    BATCH_SIZE_TOTAL: 2
+    BATCH_SIZE_PER_GPU: 1
+  TEST:
+    BATCH_SIZE_TOTAL: 1
+    TEMPERATURE: 0
+    TOP_P: None
+    NUM_BEAMS: 1
+    MAX_NEW_TOKENS: 128
+  DATALOADER:
+    FILTER_EMPTY_ANNOTATIONS: False
+    NUM_WORKERS: 16
+    LOAD_PROPOSALS: False
+    SAMPLER_TRAIN: "TrainingSampler"
+    ASPECT_RATIO_GROUPING: True
+
 
 
 # Spatial sampler

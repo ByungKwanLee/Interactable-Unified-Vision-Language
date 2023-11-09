@@ -2,8 +2,8 @@ import os
 import json
 from refer import REFER
 
-coco_root = '/mnt/hard1/lbk-cvpr/dataset/coco'
-ref_root = '/mnt/hard1/lbk-cvpr/dataset/refcocoseg'
+coco_root = '/mnt/ssd/lbk-cvpr/dataset/coco'
+ref_root = '/mnt/ssd/lbk-cvpr/dataset/refcocoseg'
 
 coco_train_annot = json.load(open(os.path.join(coco_root, 'annotations/instances_train2017.json')))
 coco_train_id = []

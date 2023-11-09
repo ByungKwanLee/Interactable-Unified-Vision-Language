@@ -256,7 +256,7 @@ class XDecoder(nn.Module):
             self_tgt_mask = pad_tgt_mask
             output = torch.cat((output, output[:-1]), dim=0)
             query_embed = torch.cat((query_embed, query_embed[:-1]), dim=0) # also pad language embdding to fix embedding
-        elif self.training and task == 'llm':
+        elif self.training and (task == 'llm' or task=='vqa'):
             self_tgt_mask = self.self_attn_mask[:,:self.num_queries,:self.num_queries].repeat(output.shape[1]*self.num_heads, 1, 1)
             # initialize with negative attention at the beginning.
             pad_tgt_mask = torch.ones((1, self.num_queries + (self.num_queries-1), self.num_queries + (self.num_queries-1)), device=self_tgt_mask.device).bool().repeat(output.shape[1]*self.num_heads, 1, 1)
@@ -277,7 +277,7 @@ class XDecoder(nn.Module):
         predictions_caption.append(results["outputs_caption"])
         predictions_captioning.append(results["outputs_captionting"])
 
-        if task == 'llm':
+        if task == 'llm' or task == 'vqa':
             decoder_output = self.decoder_norm(output)
             predictions_image_feat.append(decoder_output[:self.num_queries-1].transpose(0, 1))
         
@@ -285,7 +285,7 @@ class XDecoder(nn.Module):
             level_index = i % self.num_feature_levels
             attn_mask[torch.where(attn_mask.sum(-1) == attn_mask.shape[-1])] = False
 
-            if ((self.training and task == 'vlp' and self.task_switch['captioning']) or (task == 'llm')):
+            if (self.training and task == 'vlp' and self.task_switch['captioning']):
                 attn_mask = torch.cat((attn_mask, torch.zeros_like(attn_mask[:, :self.contxt_len, :])), dim=1)
             # attention: cross-attention first
             output, avg_attn = self.transformer_cross_attention_layers[i](
@@ -323,7 +323,7 @@ class XDecoder(nn.Module):
             predictions_caption.append(results["outputs_caption"])
             predictions_captioning.append(results["outputs_captionting"])
             
-            if task == 'llm':
+            if task == 'llm' or task == 'vqa':
                 decoder_output = self.decoder_norm(output)
                 predictions_image_feat.append(decoder_output[:self.num_queries-1].transpose(0, 1))
 
@@ -333,7 +333,7 @@ class XDecoder(nn.Module):
                    'pred_captions': predictions_caption[-1], 
                    'aux_outputs': [{'pred_captionings': x, 'pred_captions': y } for x, y in zip(predictions_captioning[:-1], predictions_caption[:-1])]}
             return out
-        elif task == 'llm':
+        elif task == 'llm' or task == "vqa":
             out = {'image_feature': predictions_image_feat}
             return out
         else:

@@ -43,7 +43,7 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
             WEIGHT True \
-            RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
+            RESUME_FROM /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
 
 # INSTP
 # GPU_DEVICE="0,1,2,3,4,5,6,7"
@@ -90,7 +90,7 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 #             VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
 #             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
 #             WEIGHT True \
-#             RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt \
+#             RESUME_FROM /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt \
 
 
 # INSTRUCTION
@@ -136,4 +136,4 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 #             VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
 #             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
 #             WEIGHT True \
-#             RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
+#             RESUME_FROM /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt

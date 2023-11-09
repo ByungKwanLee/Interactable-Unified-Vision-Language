@@ -19,7 +19,7 @@ Load_LLM: false
 # SAM Image Resolution
 IMG_RESOLUTION: 256
 NUM_GRIDS_HORIZON: 16
-SAM_SIZE: 'huge' # base/large/huge
+SAM_SIZE: 'base' # base/large/huge
 
 # Detectron2 training config for optimizer and lr scheduler
 SOLVER:
@@ -440,6 +440,35 @@ CITY:
   DATALOADER:
     FILTER_EMPTY_ANNOTATIONS: True
     NUM_WORKERS: 4
+
+# VQAv2 Dataset
+VQA:
+  INPUT:
+    IMAGE_SIZE: 256
+    DATASET_MAPPER_NAME: "vqav2_train"
+    IGNORE_VALUE: 255
+    COLOR_AUG_SSD: False
+    SIZE_DIVISIBILITY: 32
+    MASK_FORMAT: "polygon"
+    FORMAT: "RGB"
+    CROP:
+      ENABLED: True
+    NUM_CLASSES: 3129
+  TRAIN:
+    BATCH_SIZE_TOTAL: 2
+    BATCH_SIZE_PER_GPU: 1
+  TEST:
+    BATCH_SIZE_TOTAL: 1
+    TEMPERATURE: 0
+    TOP_P: None
+    NUM_BEAMS: 1
+    MAX_NEW_TOKENS: 128
+  DATALOADER:
+    FILTER_EMPTY_ANNOTATIONS: False
+    NUM_WORKERS: 16
+    LOAD_PROPOSALS: False
+    SAMPLER_TRAIN: "TrainingSampler"
+    ASPECT_RATIO_GROUPING: True
 
 
 # Spatial sampler

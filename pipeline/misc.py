@@ -39,7 +39,7 @@ def hook_switcher(model, name):
     elif name in ['coco_2017_val_panoptic_with_sem_seg', 'ade20k_panoptic_val', 'coco_2017_test-dev']:
         mappings = {'SEMANTIC_ON': True, 'INSTANCE_ON': True, 'PANOPTIC_ON': True}
     else:
-        if name not in ["vlp_val", "vlp_captioning_val", "vlp_val2017", "vlp_captioning_val2017", "imagenet_val", "refcocog_val_google", "phrasecut_val", "phrasecut_test", "refcocop_val_unc", "refcoco_val_unc", "refcocog_val_umd", "pascalvoc_val_Point", "grounding_coco_entity_val", "vlp_coco_entity_val"]:
+        if name not in ["vlp_val", "vlp_captioning_val", "vlp_val2017", "vlp_captioning_val2017", "imagenet_val", "refcocog_val_google", "phrasecut_val", "phrasecut_test", "refcocop_val_unc", "refcoco_val_unc", "refcocog_val_umd", "pascalvoc_val_Point", "grounding_coco_entity_val", "vlp_coco_entity_val", "instp_train", "instp_val", "instp_captioning_val", "instp_val2017", "instp_captioning_val2017", "instruction_train", "instruction_val", "instruction_captioning_val", "instruction_val2017", "instruction_captioning_val2017", "vqav2_train", "vqav2_test", "vqav2_test-dev", "vqav2_val"]:
             assert False, "dataset switcher is not defined"
 
     for key, value in mappings.items():
