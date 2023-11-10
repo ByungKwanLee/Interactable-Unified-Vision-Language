@@ -153,7 +153,7 @@ class XDecoder(nn.Module):
         self.register_buffer("self_attn_mask", self_attn_mask)
 
         # LBK EDIT
-        self.feature_size = 56
+        self.feature_size = 64
         self.sam_pler = nn.Conv3d(in_channels=32, out_channels=512, kernel_size=(1, self.feature_size, self.feature_size)) # 3D Conv
         # self.sam_pler = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(1, 1)) # MLP
 

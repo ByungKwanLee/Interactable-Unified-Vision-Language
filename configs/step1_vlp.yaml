@@ -17,7 +17,7 @@ DATASETS:
 Load_LLM: false
 
 # SAM Image Resolution
-IMG_RESOLUTION: 1024
+IMG_RESOLUTION: 256
 NUM_GRIDS_HORIZON: 10
 SAM_SIZE: 'large' # base/large/huge
 
@@ -196,7 +196,7 @@ COCO:
     MIN_SIZE_TRAIN_SAMPLING: 'choice'
     MIN_SIZE_TEST: 800
     MAX_SIZE_TEST: 1333
-    IMAGE_SIZE: 1024
+    IMAGE_SIZE: 256
     MIN_SCALE: 0.1
     MAX_SCALE: 2.0
     DATASET_MAPPER_NAME: "coco_panoptic_lsj"
@@ -233,7 +233,7 @@ COCO:
 
 VLP:
   INPUT:
-    IMAGE_SIZE: 224
+    IMAGE_SIZE: 256
     DATASET_MAPPER_NAME: "vlpretrain"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
