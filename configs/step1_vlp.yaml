@@ -9,7 +9,7 @@
 DATASETS:
   TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "vlp_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  TEST: ["coco_2017_val_panoptic_with_sem_seg", "refcocog_val_umd", "vlp_val"] # ["pascalvoc_val_Point"]
+  TEST: ["refcocog_val_umd", "vlp_val"] # ["pascalvoc_val_Point"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
@@ -19,7 +19,7 @@ Load_LLM: false
 # SAM Image Resolution
 IMG_RESOLUTION: 1024
 NUM_GRIDS_HORIZON: 10
-SAM_SIZE: 'base' # base/large/huge
+SAM_SIZE: 'large' # base/large/huge
 
 # Detectron2 training config for optimizer and lr scheduler
 SOLVER:
@@ -176,7 +176,7 @@ MODEL:
     TRAIN_NUM_POINTS: 12544
     OVERSAMPLE_RATIO: 3.0
     IMPORTANCE_SAMPLE_RATIO: 0.75
-    DEC_LAYERS: 4  # 9 decoder layers, add one for the loss on learnable query
+    DEC_LAYERS: 7  # 9 decoder layers, add one for the loss on learnable query
     TOP_GROUNDING_LAYERS: 3
     TOP_CAPTION_LAYERS: 3
     TOP_CAPTIONING_LAYERS: 3

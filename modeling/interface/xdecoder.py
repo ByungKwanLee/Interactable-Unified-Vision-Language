@@ -112,8 +112,8 @@ class XDecoder(nn.Module):
         self.query_embed = nn.Embedding(num_queries, hidden_dim)
         
         # level embedding (we always use 3 scales)
-        self.num_feature_levels = 3
-        self.level_indexes = [0,1,2] # LBK
+        self.num_feature_levels = 3 # num of hierarchical features
+        self.level_indexes = [0,1,2,0,1,2] # LBK == len(self.num_layer)
         self.level_embed = nn.Embedding(self.num_feature_levels, hidden_dim)
         self.input_proj = nn.ModuleList()
         
