@@ -113,7 +113,7 @@ class XDecoder(nn.Module):
         
         # level embedding (we always use 3 scales)
         self.num_feature_levels = 3
-        self.level_indexes = [0,1,2] # LBK
+        self.level_indexes = [0, 1, 2, 0, 1, 2] # LBK
         self.level_embed = nn.Embedding(self.num_feature_levels, hidden_dim)
         self.input_proj = nn.ModuleList()
         
@@ -153,9 +153,9 @@ class XDecoder(nn.Module):
         self.register_buffer("self_attn_mask", self_attn_mask)
 
         # LBK EDIT
-        self.feature_size = 56
+        self.feature_size = 64
         self.sam_pler = nn.Conv3d(in_channels=32, out_channels=512, kernel_size=(1, self.feature_size, self.feature_size)) # 3D Conv
-        # self.sam_pler = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(1, 1)) # MLP
+        # self.sam_pler = nn.Conv2d(in_channels=32, out_channels=512, kernel_size=(1, 1)) # MLP
 
 
     @classmethod

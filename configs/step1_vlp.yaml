@@ -9,7 +9,7 @@
 DATASETS:
   TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "vlp_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  TEST: ["coco_2017_val_panoptic_with_sem_seg", "refcocog_val_umd", "vlp_val"] # ["pascalvoc_val_Point"]
+  TEST: ["refcocog_val_umd", "vlp_val"] # ["pascalvoc_val_Point"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
@@ -17,9 +17,9 @@ DATASETS:
 Load_LLM: false
 
 # SAM Image Resolution
-IMG_RESOLUTION: 1024
+IMG_RESOLUTION: 256
 NUM_GRIDS_HORIZON: 10
-SAM_SIZE: 'base' # base/large/huge
+SAM_SIZE: 'huge' # base/large/huge
 
 # Detectron2 training config for optimizer and lr scheduler
 SOLVER:
@@ -45,7 +45,7 @@ SOLVER:
     NORM_TYPE: 2.0
   AMP:
     ENABLED: True
-  MAX_NUM_EPOCHS: 10 #50
+  MAX_NUM_EPOCHS: 20 #50
 
 # Define Test/Trainer/Saving
 PIPELINE: XDecoderPipeline
@@ -176,7 +176,7 @@ MODEL:
     TRAIN_NUM_POINTS: 12544
     OVERSAMPLE_RATIO: 3.0
     IMPORTANCE_SAMPLE_RATIO: 0.75
-    DEC_LAYERS: 4  # 9 decoder layers, add one for the loss on learnable query
+    DEC_LAYERS: 7  # 9 decoder layers, add one for the loss on learnable query
     TOP_GROUNDING_LAYERS: 3
     TOP_CAPTION_LAYERS: 3
     TOP_CAPTIONING_LAYERS: 3
@@ -196,7 +196,7 @@ COCO:
     MIN_SIZE_TRAIN_SAMPLING: 'choice'
     MIN_SIZE_TEST: 800
     MAX_SIZE_TEST: 1333
-    IMAGE_SIZE: 1024
+    IMAGE_SIZE: 256
     MIN_SCALE: 0.1
     MAX_SCALE: 2.0
     DATASET_MAPPER_NAME: "coco_panoptic_lsj"
@@ -233,7 +233,7 @@ COCO:
 
 VLP:
   INPUT:
-    IMAGE_SIZE: 224
+    IMAGE_SIZE: 256
     DATASET_MAPPER_NAME: "vlpretrain"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
@@ -257,7 +257,7 @@ VLP:
 # Instruction FT Dataset
 INSTRUCT:
   INPUT:
-    IMAGE_SIZE: 1024
+    IMAGE_SIZE: 256
     DATASET_MAPPER_NAME: "instruction_train"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
@@ -281,7 +281,7 @@ INSTRUCT:
   # Instruction FT Dataset
 INSTP:
   INPUT:
-    IMAGE_SIZE: 1024
+    IMAGE_SIZE: 256
     DATASET_MAPPER_NAME: "instp_train"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
@@ -444,7 +444,7 @@ CITY:
 # VQAv2 Dataset
 VQA:
   INPUT:
-    IMAGE_SIZE: 1024
+    IMAGE_SIZE: 256
     DATASET_MAPPER_NAME: "vqav2_train"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False

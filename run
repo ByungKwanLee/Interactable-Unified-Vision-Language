@@ -32,13 +32,16 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
             VLP.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
             VLP.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
-            COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
-            ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
-            VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
-            REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
+            COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * 2)) \
+            ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * 2)) \
+            VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * 2)) \
+            REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * 2)) \
             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
             WEIGHT True \
-            RESUME_FROM /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
+            RESUME_FROM /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
+            # /home/junho/lbk/sam_xdecoder/ckpt/run_5/default/epoch1_model_state_dict.pt
+            # /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
+            # /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
 
 # INSTP
 # GPU_DEVICE="0,1,2,3,4,5,6,7"
@@ -73,11 +76,9 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 #             COCO.INPUT.IMAGE_SIZE 256 \
 #             COCO.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
 #             COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
-#             COCO.DATALOADER.NUM_WORKERS $n_workers \
 #             INSTP.INPUT.IMAGE_SIZE 256 \
 #             INSTP.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
 #             INSTP.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
-#             INSTP.DATALOADER.NUM_WORKERS $n_workers \
 #             INSTP.TEST.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
 #             COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
 #             ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
@@ -119,11 +120,9 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 #             COCO.INPUT.IMAGE_SIZE 256 \
 #             COCO.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
 #             COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
-#             COCO.DATALOADER.NUM_WORKERS 20 \
 #             INSTRUCT.INPUT.IMAGE_SIZE 256 \
 #             INSTRUCT.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
 #             INSTRUCT.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
-#             INSTRUCT.DATALOADER.NUM_WORKERS 20 \
 #             INSTRUCT.TEST.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
 #             COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
 #             ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
