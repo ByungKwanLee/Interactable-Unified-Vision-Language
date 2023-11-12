@@ -55,7 +55,7 @@ class LanguageEncoder(nn.Module):
         lang_encoder = build_lang_encoder(cfg['MODEL']['TEXT'], tokenizer, cfg['VERBOSE'])
         
         dim_lang = cfg['MODEL']['TEXT']['WIDTH']
-        dim_projection = cfg['MODEL']['DIM_PROJ']
+        dim_projection = cfg['SYSLEARNER_DIM']
         lang_projection = nn.Parameter(torch.empty(dim_lang, dim_projection))
         trunc_normal_(lang_projection, std=.02)
 

@@ -41,6 +41,7 @@ class GeneralizedXdecoder(nn.Module):
     def __init__(
         self,
         *,
+        syslearner_dim: int,
         sam_size:str,
         load_llm: bool,
         img_resolution: int,
@@ -87,7 +88,7 @@ class GeneralizedXdecoder(nn.Module):
         # LBK build LLM
         if load_llm:
             self.llm, self.llm_tokenizer, self.data_collator = prepare_llm(bits=4)
-            self.img_to_lang = nn.Linear(512, 4096)
+            self.img_to_lang = nn.Linear(syslearner_dim, 4096)
                 
         self.sem_seg_head = sem_seg_head
         self.sam = sam # sam
@@ -128,7 +129,6 @@ class GeneralizedXdecoder(nn.Module):
         dec_cfg = cfg['MODEL']['DECODER']
 
         # Loss parameters:
-        deep_supervision = dec_cfg['DEEP_SUPERVISION']
         no_object_weight = dec_cfg['NO_OBJECT_WEIGHT']
 
         # loss weights, switcher for task, and top layers to compute loss
@@ -189,18 +189,16 @@ class GeneralizedXdecoder(nn.Module):
                     weight_dict["loss_{}_0".format(key)] = loss_weights[key]
         
         # generate full weight dict and remove not computed layers. 
-        if deep_supervision:
-            dec_layers = dec_cfg['DEC_LAYERS']
-            aux_weight_dict = {}
-            for i in range(dec_layers - 1):
-                for k, v in weight_dict.items():
-                    if (i+1) > (top_x_layers[k.split('_')[1]] - 1):
-                        continue
-                    aux_weight_dict.update({k.replace('_0', f"_{i+1}"): v})
-            weight_dict.update(aux_weight_dict)
+        aux_weight_dict = {}
+        for i in range(6):
+            for k, v in weight_dict.items():
+                if (i+1) > (top_x_layers[k.split('_')[1]] - 1):
+                    continue
+                aux_weight_dict.update({k.replace('_0', f"_{i+1}"): v})
+        weight_dict.update(aux_weight_dict)
         
         
-        # llm loss
+        # llm loss, LBK EDIT
         weight_dict.update({'loss_llm': 1.0})
 
         grd_weight = {'text': dec_cfg['GROUNDING']['TEXT_WEIGHT'], 'class': dec_cfg['GROUNDING']['CLASS_WEIGHT']}
@@ -231,6 +229,7 @@ class GeneralizedXdecoder(nn.Module):
             backbone_dim = 1280 
 
         return {
+            "syslearner_dim": cfg['SYSLEARNER_DIM'],
             "sam_size": cfg['SAM_SIZE'],
             "load_llm": cfg['Load_LLM'],
             "img_resolution": cfg['IMG_RESOLUTION'],
@@ -238,7 +237,7 @@ class GeneralizedXdecoder(nn.Module):
             "sem_seg_head": sem_seg_head,
             "criterion": criterion,
             "losses": losses,
-            "num_queries": 100+1,
+            "num_queries": cfg['NUM_GRIDS_HORIZON']**2+1,
             "object_mask_threshold": dec_cfg['TEST']['OBJECT_MASK_THRESHOLD'],
             "overlap_threshold": dec_cfg['TEST']['OVERLAP_THRESHOLD'],
             "metadata": MetadataCatalog.get(cfg['DATASETS']['TRAIN'][0]),
@@ -259,7 +258,7 @@ class GeneralizedXdecoder(nn.Module):
             "train_dataset_name": train_dataset_name,
             "retrieval_emsemble": dec_cfg['RETRIEVAL']['ENSEMBLE'],
             "backbone_dim": backbone_dim,
-            "dim_proj": cfg['MODEL']['DIM_PROJ'],
+            "dim_proj": cfg['SYSLEARNER_DIM'],
         }
 
     @property
@@ -293,9 +292,9 @@ class GeneralizedXdecoder(nn.Module):
                         Each dict contains keys "id", "category_id", "isthing".
         """
         # visualization
-        # a = batched_inputs['coco'][0]['image'].permute(1,2,0).flip(2).cpu().numpy()
+        # a = batched_inputs['coco'][1]['image'].permute(1,2,0).flip(2).cpu().numpy()
         # b = batched_inputs['coco'][0]['instances']._fields['gt_masks'][0].cpu().numpy()
-        # c = batched_inputs['instruction'][1]['image'].permute(1,2,0).flip(2).cpu().numpy()
+        # c = batched_inputs['vlp'][0]['image'].permute(1,2,0).flip(2).cpu().numpy()
         
         if self.training:
             losses = {}

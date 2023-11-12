@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 # VLP
-GPU_DEVICE="0,1,2,3,4,5,6,7"
+GPU_DEVICE="0,1,2,3,4,5,6"
 length=${#GPU_DEVICE}
 port=$(($RANDOM%10000+30000))
 n_gpu=$(((length+1)/2))
 image_bath=8
-lang_batch=80
+lang_batch=16
 
 CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             --conf_files configs/step1_vlp.yaml \
@@ -15,9 +15,6 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             PORT $port \
             SAVE_DIR ckpt/ \
             WANDB True \
-            MODEL.DECODER.HIDDEN_DIM 512 \
-            MODEL.ENCODER.CONVS_DIM 512 \
-            MODEL.ENCODER.MASK_DIM 512 \
             MODEL.DECODER.CAPTIONING.ENABLED True \
             MODEL.DECODER.RETRIEVAL.ENABLED True \
             MODEL.DECODER.GROUNDING.ENABLED True \
@@ -60,9 +57,6 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 #             FP16 True \
 #             PORT $port \
 #             SAVE_DIR ckpt/ \
-#             MODEL.DECODER.HIDDEN_DIM 512 \
-#             MODEL.ENCODER.CONVS_DIM 512 \
-#             MODEL.ENCODER.MASK_DIM 512 \
 #             MODEL.DECODER.CAPTIONING.ENABLED True \
 #             MODEL.DECODER.RETRIEVAL.ENABLED True \
 #             MODEL.DECODER.GROUNDING.ENABLED True \
@@ -104,9 +98,6 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 #             FP16 True \
 #             PORT $port \
 #             SAVE_DIR ckpt/ \
-#             MODEL.DECODER.HIDDEN_DIM 512 \
-#             MODEL.ENCODER.CONVS_DIM 512 \
-#             MODEL.ENCODER.MASK_DIM 512 \
 #             MODEL.DECODER.CAPTIONING.ENABLED True \
 #             MODEL.DECODER.RETRIEVAL.ENABLED True \
 #             MODEL.DECODER.GROUNDING.ENABLED True \

@@ -45,19 +45,14 @@ def align_and_update_state_dicts(model_state_dict, ckpt_state_dict):
             if model_weight.shape == ckpt_weight.shape:
                 result_dicts[model_key] = ckpt_weight
                 filtered_ckpt_keys.pop(filtered_ckpt_keys.index(model_key))
-                matched_log.append("Loaded {}, Model Shape: {} <-> Ckpt Shape: {}".format(model_key, model_weight.shape, ckpt_weight.shape))
+                matched_log.append("Loaded {}".format(model_key))
             else:
-                unmatched_log.append("*UNMATCHED* {}, Model Shape: {} <-> Ckpt Shape: {}".format(model_key, model_weight.shape, ckpt_weight.shape))
+                unmatched_log.append("*UNMATCHED* {}".format(model_key))
         else:
             unloaded_log.append("*UNLOADED* {}".format(model_key))
             
-    # if is_main_process():
-    #     for info in matched_log:
-    #         logger.info(info)
-    #     for info in unloaded_log:
-    #         logger.warning(info)
-    #     for key in ckpt_keys:
-    #         logger.warning("$UNUSED$ {}, Ckpt Shape: {}".format(key, ckpt_state_dict[key].shape))
-    #     for info in unmatched_log:
-    #         logger.warning(info)
+    # [print(x) for x in matched_log]
+    # [print(x) for x in unmatched_log]
+    # [print(x) for x in unloaded_log]
+    # exit(0)
     return result_dicts

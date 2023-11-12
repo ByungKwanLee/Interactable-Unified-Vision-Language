@@ -30,13 +30,13 @@ class XDecoder(nn.Module):
         lang_encoder: nn.Module,
         mask_classification=True,
         *,
+        syslearner_dim: int,
         hidden_dim: int,
         dim_proj: int,
         num_queries: int,
         contxt_len: int,
         nheads: int,
         dim_feedforward: int,
-        dec_layers: int,
         pre_norm: bool,
         mask_dim: int,
         task_switch: dict,
@@ -53,7 +53,6 @@ class XDecoder(nn.Module):
             nheads: number of heads
             dim_feedforward: feature dimension in feedforward network
             enc_layers: number of Transformer encoder layers
-            dec_layers: number of Transformer decoder layers
             pre_norm: whether to use pre-LayerNorm or not
             mask_dim: mask feature dimension
             enforce_input_project: add input project 1x1 conv even if input
@@ -67,9 +66,13 @@ class XDecoder(nn.Module):
         N_steps = hidden_dim // 2
         self.pe_layer = PositionEmbeddingSine(N_steps, normalize=True)
         
+        # LBK EDIT
+        self.num_feature_levels = 3
+        self.level_indexes = [0, 1, 2, 0, 1, 2] # LBK
+
         # define Transformer decoder here
         self.num_heads = nheads
-        self.num_layers = dec_layers
+        self.num_layers = len(self.level_indexes)
         self.contxt_len = contxt_len
         self.transformer_self_attention_layers = nn.ModuleList()
         self.transformer_cross_attention_layers = nn.ModuleList()
@@ -112,14 +115,12 @@ class XDecoder(nn.Module):
         self.query_embed = nn.Embedding(num_queries, hidden_dim)
         
         # level embedding (we always use 3 scales)
-        self.num_feature_levels = 3
-        self.level_indexes = [0, 1, 2, 0, 1, 2] # LBK
         self.level_embed = nn.Embedding(self.num_feature_levels, hidden_dim)
         self.input_proj = nn.ModuleList()
         
         for _ in range(self.num_feature_levels):
-            if 512 != hidden_dim or enforce_input_project:
-                self.input_proj.append(Conv2d(512, hidden_dim, kernel_size=1))
+            if syslearner_dim != hidden_dim or enforce_input_project:
+                self.input_proj.append(Conv2d(syslearner_dim, hidden_dim, kernel_size=1))
                 weight_init.c2_xavier_fill(self.input_proj[-1])
             else:
                 self.input_proj.append(nn.Sequential())
@@ -153,14 +154,16 @@ class XDecoder(nn.Module):
         self.register_buffer("self_attn_mask", self_attn_mask)
 
         # LBK EDIT
-        self.feature_size = 64
-        self.sam_pler = nn.Conv3d(in_channels=32, out_channels=512, kernel_size=(1, self.feature_size, self.feature_size)) # 3D Conv
-        # self.sam_pler = nn.Conv2d(in_channels=32, out_channels=512, kernel_size=(1, 1)) # MLP
+        self.feature_size = 56
+        self.sam_pler = nn.Conv3d(in_channels=32, out_channels=syslearner_dim, kernel_size=(1, self.feature_size, self.feature_size)) # 3D Conv
+        # self.sam_pler = nn.Conv2d(in_channels=32, out_channels=syslearner_dim, kernel_size=(1, 1)) # MLP
 
 
     @classmethod
     def from_config(cls, cfg, lang_encoder, mask_classification, extra):
         ret = {}
+
+        ret['syslearner_dim'] = cfg['SYSLEARNER_DIM']
 
         ret["lang_encoder"] = lang_encoder
         ret["mask_classification"] = mask_classification
@@ -168,9 +171,8 @@ class XDecoder(nn.Module):
         enc_cfg = cfg['MODEL']['ENCODER']
         dec_cfg = cfg['MODEL']['DECODER']
 
-        ret["hidden_dim"] = dec_cfg['HIDDEN_DIM']
-        ret["dim_proj"] = cfg['MODEL']['DIM_PROJ']
-        ret["num_queries"] = 100+1
+        ret["hidden_dim"]  = ret["dim_proj"] = cfg['SYSLEARNER_DIM']
+        ret["num_queries"] = cfg['NUM_GRIDS_HORIZON']**2+1
         ret["contxt_len"] = 77
 
         # Transformer parameters:
@@ -182,11 +184,9 @@ class XDecoder(nn.Module):
         # implementation: that is, number of auxiliary losses is always
         # equal to number of decoder layers. With learnable query features, the number of
         # auxiliary losses equals number of decoders plus 1.
-        assert dec_cfg['DEC_LAYERS'] >= 1
-        ret["dec_layers"] = dec_cfg['DEC_LAYERS'] - 1
         ret["pre_norm"] = dec_cfg['PRE_NORM']
         ret["enforce_input_project"] = dec_cfg['ENFORCE_INPUT_PROJ']
-        ret["mask_dim"] = enc_cfg['MASK_DIM']
+        ret["mask_dim"] = cfg['SYSLEARNER_DIM']
 
         ret["task_switch"] = extra['task_switch']
         ret["captioning_step"] = dec_cfg['CAPTIONING'].get('STEP', 50)
@@ -226,8 +226,8 @@ class XDecoder(nn.Module):
         _, bs, _ = src[0].shape
 
         # QxNxC (Q=100+1)
-        query_embed = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1) # positional embedding [101, B, 512]
-        output = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1) # learnable feature [101, B, 512]
+        query_embed = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1) # positional embedding [101, B, syslearner_dim]
+        output = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1) # learnable feature [101, B, syslearner_dim]
         query_embed[:-1, ...] += visual_queries 
         output[:-1, ...] += visual_queries 
 
