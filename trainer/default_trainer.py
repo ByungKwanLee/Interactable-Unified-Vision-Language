@@ -223,6 +223,7 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
                     wb_loss_info = {key: obj.val for key, obj in self.train_loss.losses.items()}
                     wandb.log(wb_loss_info) #, step=self.min_length_dataset * epoch + batch_idx
                     wandb.log({'Learning-Rate': self.lr_schedulers['default'].get_last_lr()[0]}) # LBK-LR log
+                    wandb.log({'Epoch': epoch+1}) # LBK-LR log
 
                 loss_list = [obj.val for _, obj in self.train_loss.losses.items()]
                 total_loss = sum(loss_list) / len(loss_list)
