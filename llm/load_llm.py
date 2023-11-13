@@ -5,7 +5,7 @@ from transformers import BitsAndBytesConfig
 from .llava import LlavaLlamaForCausalLM
 from .utils import *
 
-def prepare_llm(bits=16, double_quant=True, bf16=True, quant_type='nf4', ckpt="/mnt/ssd/lbk-cvpr/checkpoints/vicuna-7b-v1.3"):
+def prepare_llm(bits=16, double_quant=True, bf16=True, quant_type='nf4', ckpt="/mnt/ssd/lbk-cvpr/checkpoints/vicuna-7b-v1.5"):
     
     bnb_model_from_pretrained_args = {}
     if bits in [4, 8]:

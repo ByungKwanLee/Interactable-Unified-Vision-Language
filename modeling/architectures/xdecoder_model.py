@@ -87,7 +87,7 @@ class GeneralizedXdecoder(nn.Module):
 
         # LBK build LLM
         if load_llm:
-            self.llm, self.llm_tokenizer, self.data_collator = prepare_llm(bits=4)
+            self.llm, self.llm_tokenizer, self.data_collator = prepare_llm(bits=8) #bits=4
             self.img_to_lang = nn.Linear(syslearner_dim, 4096)
                 
         self.sem_seg_head = sem_seg_head
@@ -491,7 +491,7 @@ class GeneralizedXdecoder(nn.Module):
             images=self.img_to_lang(outputs['image_feature'][-1])
         )
 
-        return {'llm_loss': llm_outputs.loss}
+        return {'loss_llm': llm_outputs.loss}
 
     def evaluate(self, batched_inputs):
         images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
@@ -890,13 +890,8 @@ class GeneralizedXdecoder(nn.Module):
         assert type in ['point', 'circle', 'scribble', 'polygon', 'box'], "only support point, circle, scribble, polygon, box"
 
         # getting image 
-        images = [x["image"].flip(0).to(self.device) for x in batched_inputs]
-        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, 32).tensor
-        
-        # getitng pos masks from dataloader (Point/Circle/Scribble/Polygon/Box)
-        pos_masks = [x['spatial_query']['rand_shape'].to(self.device).squeeze(1) for x in batched_inputs] # m points
-        pos_masks = ImageList.from_tensors(pos_masks, 32).tensor[0].unbind(0)
+        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
+        images = (images - self.pixel_mean) / self.pixel_std
 
         # LBK SAM propagation - (1)
         image_embeddings, x_list = self.sam.forward_image_embedding(images)
@@ -905,18 +900,32 @@ class GeneralizedXdecoder(nn.Module):
     
         if type=='point':
 
+            # getitng pos masks from dataloader (Point/Circle/Scribble/Polygon/Box)
+            pos_masks = batched_inputs[0]['spatial_query']['rand_shape'].squeeze(1).unbind(0)
+
+            # filtering resize, LBK EDIT
+            pos_points = [torch.where(x==True) for x in pos_masks]
+            pos_points = [(x[0] * images.shape[2]/batched_inputs[0]['image'].shape[1],
+                           x[1] * images.shape[3]/batched_inputs[0]['image'].shape[2]) for x in pos_points]
+            pos_points = [(x[0].int(), x[1].int()) for x in pos_points]
+            resized_pos_masks = torch.zeros(len(pos_points), images.shape[2], images.shape[3]).cuda()
+            for i in range(len(pos_points)): resized_pos_masks[i][pos_points[i]] = 1 
+            pos_masks = resized_pos_masks.bool().unbind(0)
+
             all_batch_shape_iou = []
-            for _ in range(20):
+            for i in range(20):
+
+                if i!=0: pos_points = [torch.where(x==True) for x in pos_masks]
 
                 # LBK transformation: pos_masks to pos_points (smart duplication)
-                mask2point = lambda x: torch.stack([torch.tensor([b, a]) for a, b in zip(*x)])[4,:].unsqueeze(0)
-                pos_points = [mask2point(torch.where(x==True)) for x in pos_masks]
-                total_pos_points = torch.cat(pos_points, dim=0)
-                assert len(total_pos_points) <= 100, "only support total pos points <= 100"
-                q = 16**2 // len(total_pos_points)
-                r = 16**2 % len(total_pos_points)
-                sam_point_coords = torch.zeros([100, 2]).cuda()
-                sam_point_labels = torch.ones([100]).cuda()
+                stack_pos_points = [torch.stack((x[1][0], x[0][0])).unsqueeze(0) for x in pos_points if x[0].shape[0]!=0]
+                total_pos_points = torch.cat(stack_pos_points, dim=0)
+
+                assert len(total_pos_points) <= self.num_grids_horizon**2, "only support total pos points limited!"
+                q = self.num_grids_horizon**2 // len(total_pos_points)
+                r = self.num_grids_horizon**2 % len(total_pos_points)
+                sam_point_coords = torch.zeros([self.num_grids_horizon**2, 2]).cuda()
+                sam_point_labels = torch.ones([self.num_grids_horizon**2]).cuda()
                 sam_point_coords[:q*len(total_pos_points)] = total_pos_points.repeat(q, 1)
                 sam_point_coords[q*len(total_pos_points):] = total_pos_points[:r]
                 sam_input = [{'point_coords': sam_point_coords, 'point_labels': sam_point_labels}]
@@ -1083,12 +1092,12 @@ class GeneralizedXdecoder(nn.Module):
         merged_masks = torch.cat([pos_masks, next_masks.squeeze(0)], dim=0).unbind(0)
 
         # visualization  
-        gt = gt_masks.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
-        fnn = fn.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
-        pred_mask = pred_masks.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
-        pos_mask = pos_masks.permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
-        new_mask = next_mask.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
-        merged_mask = torch.cat([i.unsqueeze(0) for i in merged_masks], dim=0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
+        # gt = gt_masks.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
+        # fnn = fn.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
+        # pred_mask = pred_masks.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
+        # pos_mask = pos_masks.permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
+        # new_mask = next_mask.squeeze(0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
+        # merged_mask = torch.cat([i.unsqueeze(0) for i in merged_masks], dim=0).permute(1,2,0).sum(dim=2, keepdim=True).cpu().numpy()
 
         return merged_masks
 

@@ -74,6 +74,14 @@ class LlavaMetaForCausalLM(ABC):
                 )), dim=1)
                 position_ids = torch.sum(attention_mask, dim=1).unsqueeze(-1) - 1
             return input_ids, position_ids, attention_mask, past_key_values, None, labels
+        
+        if type(images) is list or images.ndim == 5:
+            concat_images = torch.cat([image for image in images], dim=0)
+            split_sizes = [image.shape[0] for image in images]
+            image_features = torch.split(concat_images, split_sizes, dim=0)
+            image_features = [x.flatten(0, 1).to(self.device) for x in image_features]
+
+
         _labels = labels
         _position_ids = position_ids
         _attention_mask = attention_mask

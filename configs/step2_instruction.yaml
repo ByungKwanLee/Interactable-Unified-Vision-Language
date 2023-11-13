@@ -9,7 +9,7 @@
 DATASETS:
   TRAIN: ["instruction_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  TEST: ["vqav2_val"] # ["pascalvoc_val_Point"]
+  TEST: ["vqav2_val"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
@@ -24,15 +24,14 @@ SAM_SIZE: 'base' # base/large/huge
 # Detectron2 training config for optimizer and lr scheduler
 SOLVER:
   BASE_LR: 0.0001
-  STEPS: [0.6, 0.8] #[0.88889, 0.96296]
+  BASE_LR_END: 0.000001
   MAX_ITER: 1
-  GAMMA: 0.1
-  WARMUP_FACTOR: 1.0
+  WARMUP_FACTOR: 0.3
   WARMUP_ITERS: 10
   WARMUP_METHOD: "linear"
-  WEIGHT_DECAY: 0.05
+  WEIGHT_DECAY: 0.03
   OPTIMIZER: "ADAMW"
-  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
+  LR_SCHEDULER_NAME: "WarmupCosineLR"
   LR_MULTIPLIER:
     backbone: 0.1
     lang_encoder: 0.1
@@ -45,7 +44,11 @@ SOLVER:
     NORM_TYPE: 2.0
   AMP:
     ENABLED: True
-  MAX_NUM_EPOCHS: 10 #50
+  MAX_NUM_EPOCHS: 1 #50
+
+
+# Syslearner
+SYSLEARNER_DIM: 512
 
 
 # Define Test/Trainer/Saving
@@ -62,7 +65,7 @@ RESUME_FROM: ''
 PYLEARN_MODEL: '' # model resume when evaluation
 
 # Logging and Debug
-WANDB: true
+WANDB: false
 LOG_EVERY: 100
 FIND_UNUSED_PARAMETERS: true
 
