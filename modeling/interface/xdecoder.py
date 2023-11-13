@@ -154,7 +154,7 @@ class XDecoder(nn.Module):
         self.register_buffer("self_attn_mask", self_attn_mask)
 
         # LBK EDIT
-        self.feature_size = 56
+        self.feature_size = 64
         self.sam_pler = nn.Conv3d(in_channels=32, out_channels=syslearner_dim, kernel_size=(1, self.feature_size, self.feature_size)) # 3D Conv
         # self.sam_pler = nn.Conv2d(in_channels=32, out_channels=syslearner_dim, kernel_size=(1, 1)) # MLP
 
@@ -211,6 +211,12 @@ class XDecoder(nn.Module):
             visual_query_list.append(out)
         visual_queries = torch.cat(visual_query_list, dim=1)
         visual_queries = visual_queries[torch.randperm(visual_queries.shape[0])]
+
+        # computationally efficient propagation
+        # upscaled_embedding_feat = torch.cat([
+        #     F.interpolate(upscaled_embedding, size=(self.feature_size, self.feature_size), mode='bilinear').unsqueeze(0) 
+        #     for upscaled_embedding in upscaled_embedding_list], dim=0)
+        # visual_queries = self.sam_pler(upscaled_embedding_feat.transpose(1, 2).contiguous()).squeeze(3, 4).permute(2, 0, 1)
 
         # disable mask, it does not affect performance
         del mask
@@ -365,6 +371,12 @@ class XDecoder(nn.Module):
             visual_query_list.append(out)
         visual_queries = torch.cat(visual_query_list, dim=1)
         visual_queries = visual_queries[torch.randperm(visual_queries.shape[0])]
+
+        # computationally efficient propagation 
+        # upscaled_embedding_feat = torch.cat([
+        #     F.interpolate(upscaled_embedding, size=(self.feature_size, self.feature_size), mode='bilinear').unsqueeze(0) 
+        #     for upscaled_embedding in upscaled_embedding_list], dim=0)
+        # visual_queries = self.sam_pler(upscaled_embedding_feat.transpose(1, 2).contiguous()).squeeze(3, 4).permute(2, 0, 1)
 
 
         # disable mask, it does not affect performance
