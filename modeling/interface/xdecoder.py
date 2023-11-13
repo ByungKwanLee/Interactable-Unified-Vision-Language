@@ -267,12 +267,12 @@ class XDecoder(nn.Module):
         elif self.training and (task == 'llm' or task=='vqa'):
             self_tgt_mask = self.self_attn_mask[:,:self.num_queries,:self.num_queries].repeat(output.shape[1]*self.num_heads, 1, 1)
             # initialize with negative attention at the beginning.
-            pad_tgt_mask = torch.ones((1, self.num_queries + (self.num_queries-1), self.num_queries + (self.num_queries-1)), device=self_tgt_mask.device).bool().repeat(output.shape[1]*self.num_heads, 1, 1)
+            pad_tgt_mask = torch.ones((1, self.num_queries + self.contxt_len, self.num_queries + self.contxt_len), device=self_tgt_mask.device).bool().repeat(output.shape[1]*self.num_heads, 1, 1)
             pad_tgt_mask[:,:self.num_queries,:self.num_queries] = self_tgt_mask
             pad_tgt_mask[:,self.num_queries:,self.num_queries:] = False # grounding tokens could attend with eatch other
             self_tgt_mask = pad_tgt_mask
-            output = torch.cat((output, output[:-1]), dim=0)
-            query_embed = torch.cat((query_embed, query_embed[:-1]), dim=0) # also pad language embdding to fix embedding    
+            output = torch.cat((output, output[:-(output.size(0)-self.contxt_len)]), dim=0)
+            query_embed = torch.cat((query_embed, query_embed[:-(query_embed.size(0)-self.contxt_len)]), dim=0) # also pad language embdding to fix embedding    
         else:
             self_tgt_mask = self.self_attn_mask[:,:self.num_queries,:self.num_queries].repeat(output.shape[1]*self.num_heads, 1, 1)
 
@@ -284,15 +284,11 @@ class XDecoder(nn.Module):
         predictions_bbox.append(results["outputs_bbox"])
         predictions_caption.append(results["outputs_caption"])
         predictions_captioning.append(results["outputs_captionting"])
-
-        if task == 'llm' or task == 'vqa':
-            decoder_output = self.decoder_norm(output)
-            predictions_image_feat.append(decoder_output[:self.num_queries-1].transpose(0, 1))
         
         for i in range(self.num_layers):
             attn_mask[torch.where(attn_mask.sum(-1) == attn_mask.shape[-1])] = False
 
-            if (self.training and task == 'vlp' and self.task_switch['captioning']):
+            if ((self.training and task == 'vlp' and self.task_switch['captioning']) or (task == 'llm') or (task == 'vqa')):
                 attn_mask = torch.cat((attn_mask, torch.zeros_like(attn_mask[:, :self.contxt_len, :])), dim=1)
             # attention: cross-attention first
             output, avg_attn = self.transformer_cross_attention_layers[i](
@@ -330,7 +326,7 @@ class XDecoder(nn.Module):
             predictions_caption.append(results["outputs_caption"])
             predictions_captioning.append(results["outputs_captionting"])
             
-            if task == 'llm' or task == 'vqa':
+            if ((task == 'llm' or task == 'vqa') and (i == (self.num_layers-1))):
                 decoder_output = self.decoder_norm(output)
                 predictions_image_feat.append(decoder_output[:self.num_queries-1].transpose(0, 1))
 

@@ -36,8 +36,7 @@
             "SOLVER.LR_MULTIPLIER.lang_encoder", "0.1", 
             "WEIGHT", "True", 
             "RESUME_FROM", 
-            "/mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt"],
-            
+            "/mnt/ssd/lbk-cvpr/syslearner/SAMX-Huge-6Layer-256/default/epoch15_model_state_dict.pt"],
         }
     ]
 }

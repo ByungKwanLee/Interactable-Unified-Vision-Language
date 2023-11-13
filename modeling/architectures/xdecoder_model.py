@@ -484,14 +484,14 @@ class GeneralizedXdecoder(nn.Module):
         outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, target_queries=None, target_vlp=None, task='llm', extra=extra)
         
         targets_llm = self.prepare_llm_targets(batched_inputs)
-        losses = self.llm(
+        llm_outputs = self.llm(
             input_ids=targets_llm["input_ids"],
             attention_mask=targets_llm["attention_mask"],
             labels=targets_llm["labels"],
             images=self.img_to_lang(outputs['image_feature'][-1])
         )
-               
-        return losses
+
+        return {'llm_loss': llm_outputs.loss}
 
     def evaluate(self, batched_inputs):
         images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
