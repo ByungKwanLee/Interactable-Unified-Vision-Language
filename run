@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
 # VLP
-GPU_DEVICE="0,1,2,3,4,5,6"
+GPU_DEVICE="0,1,2,3,4,5,6,7"
 length=${#GPU_DEVICE}
 port=$(($RANDOM%10000+30000))
 n_gpu=$(((length+1)/2))
 image_bath=8
-lang_batch=16
+lang_batch=80
+test_batch=4
 
 CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             --conf_files configs/step1_vlp.yaml \
@@ -29,10 +30,10 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
             VLP.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
             VLP.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
-            COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * 2)) \
-            ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * 2)) \
-            VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * 2)) \
-            REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * 2)) \
+            COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
+            ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
+            VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
+            REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
             WEIGHT True \
             RESUME_FROM /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
