@@ -162,12 +162,10 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
 
         self.in_features = ['res2', 'res3', 'res4', 'res5']  # starting from "res2" to "res5"
 
-        self.seg_head1 = nn.Sequential(Conv2d(256, 256, kernel_size=1),
-                                      nn.ReLU(),
+        self.seg_head = nn.Sequential(Conv2d(256, 256, kernel_size=1),
+                                      nn.Dropout(),
                                       Conv2d(256, 256, kernel_size=1),
-                                      )
-        self.seg_head2 = Conv2d(256, 256, kernel_size=1)
-        self.seg_head = lambda x: self.seg_head1(x) + self.seg_head2(x)
+                                      nn.ReLU())
         self.input_proj = Conv2d(256, conv_dim, kernel_size=1)
 
 
