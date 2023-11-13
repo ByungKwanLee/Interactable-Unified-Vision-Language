@@ -100,6 +100,7 @@ class UtilsTrainer(DistributedTrainer):
             for module_name in self.model_names:
                 module_save_dir = os.path.join(save_dir, module_name)
                 self.raw_models[module_name].save_pretrained(module_save_dir, epoch)
+            print(f'Saved!: {module_save_dir}')
 
     def load_weight(self, checkpoint_path=None):
         self.load_model(checkpoint_path)
