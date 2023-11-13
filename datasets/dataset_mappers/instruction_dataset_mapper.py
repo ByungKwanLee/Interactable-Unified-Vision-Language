@@ -245,10 +245,10 @@ class InstructionDatasetMapper:
         attention_masks = (target != -100).type(torch.float32)
 
         # Pad to length 2048
-        max_length = 2048
-        input_ids = F.pad(input_ids, (0, max_length - input_ids.size(-1)))
-        targets = F.pad(targets, (0, max_length - targets.size(-1)), value=IGNORE_INDEX)
-        attention_masks = F.pad(attention_masks, (0, max_length - attention_masks.size(-1)))
+        # max_length = 2048
+        # input_ids = F.pad(input_ids, (0, max_length - input_ids.size(-1)))
+        # targets = F.pad(targets, (0, max_length - targets.size(-1)), value=IGNORE_INDEX)
+        # attention_masks = F.pad(attention_masks, (0, max_length - attention_masks.size(-1)))
 
         return dict(
             input_ids=input_ids,
