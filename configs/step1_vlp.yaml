@@ -23,7 +23,7 @@ VOC:
 DATASETS:
   TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "vlp_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  TEST: ["pascalvoc_val_Point"] # ["pascalvoc_val_Point"]
+  TEST: ["refcocog_val_umd"] # ["pascalvoc_val_Point"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 

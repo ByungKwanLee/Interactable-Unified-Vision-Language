@@ -311,7 +311,10 @@ class GeneralizedXdecoder(nn.Module):
 
             for k in list(losses.keys()):
                 if k in self.criterion.weight_dict:
-                    losses[k] *= self.criterion.weight_dict[k]
+                    if  ('grounding' in k) or ('mask' in k): # fine-tuning for ref-coco, LBK EDIT
+                        losses[k] *= self.criterion.weight_dict[k]
+                    else: # remove this loss if not specified in `weight_dict`
+                        losses[k] *= 0
                 else: # remove this loss if not specified in `weight_dict`
                     losses.pop(k)
             return losses
@@ -866,8 +869,8 @@ class GeneralizedXdecoder(nn.Module):
         for mask_pred_result, input_per_image in zip(
             mask_pred_results, batched_inputs
         ):
-            height = input_per_image.get("height", images.shape[2])
-            width = input_per_image.get("width", images.shape[3])
+            height = input_per_image.get("height")
+            width = input_per_image.get("width")
             processed_results.append({})
 
             mask_pred_result = retry_if_cuda_oom(sem_seg_postprocess)(
