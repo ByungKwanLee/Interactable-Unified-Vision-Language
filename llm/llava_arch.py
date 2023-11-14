@@ -62,7 +62,7 @@ class LlavaMetaForCausalLM(ABC):
         return image_features
 
     def prepare_inputs_labels_for_multimodal(
-        self, input_ids, position_ids, attention_mask, past_key_values, labels, images
+        self, input_ids, position_ids, attention_mask, past_key_values, labels, images, bit_flag=True
     ):
         if images is None or input_ids.shape[1] == 1:
             if past_key_values is not None and images is not None and input_ids.shape[1] == 1:
@@ -121,6 +121,7 @@ class LlavaMetaForCausalLM(ABC):
                 cur_labels_noim.append(cur_labels[image_token_indices[i]+1:image_token_indices[i+1]])
             split_sizes = [x.shape[0] for x in cur_labels_noim]
             cur_input_embeds = self.get_model().embed_tokens(torch.cat(cur_input_ids_noim))
+            if bit_flag: cur_input_embeds = cur_input_embeds.half()
             cur_input_embeds_no_im = torch.split(cur_input_embeds, split_sizes, dim=0)
             cur_new_input_embeds = []
             cur_new_labels = []

@@ -87,11 +87,14 @@ class GeneralizedXdecoder(nn.Module):
 
         # LBK build LLM
         if load_llm:
-            self.llm, self.llm_tokenizer, self.data_collator = prepare_llm(bits=8) #bits=4
+            bits = 8
+            self.bit_flag = True if bits in [4, 8] else False
+            self.llm, self.llm_tokenizer, self.data_collator = prepare_llm(bits=bits) #bits=4
             self.img_to_lang = nn.Linear(syslearner_dim, 4096)
                 
         self.sem_seg_head = sem_seg_head
         self.sam = sam # sam
+        self.itm_head = nn.Linear(syslearner_dim, 2) # for itm
         self.criterion = criterion
         self.losses = losses
         self.num_queries = num_queries
@@ -407,6 +410,193 @@ class GeneralizedXdecoder(nn.Module):
         del _outputs
         return losses
 
+    def forward_vlp_new(self, batched_inputs):
+        images = torch.cat([x["image"].flip(0).to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
+        images = (images - self.pixel_mean) / self.pixel_std
+        
+        targets_vlp = self.prepare_vlp_targets(batched_inputs)
+        
+        extra = {"token_embedding": self.sem_seg_head.predictor.lang_encoder.lang_encoder.token_embedding,
+                 "lang_encoder": self.sem_seg_head.predictor.lang_encoder,
+                 "training": self.training}
+
+       # LBK SAM propagation
+        input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+        input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
+        sam_input = [
+            {
+                'image': i,
+                'point_coords': input_point,
+                'point_labels': input_label,
+            } for i in images
+        ] 
+        x_list, _, upscaled_embedding_list, src_list\
+        = self.sam(sam_input, multimask_output=True)
+        
+        
+        outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, target_queries=None, target_vlp=targets_vlp, task='vlp', extra=extra)
+        
+        
+        for key, value in outputs.items():
+            if key == 'pred_captionings':
+                outputs[key] = value
+            elif key == 'pred_captions':
+                # outputs[key] = value[:,-1:]
+                outputs[key] = value
+            elif key == 'aux_outputs':
+                outputs[key] = []
+                for i in range(len(value)):
+                    outputs[key] += [{}]
+                    for _key, _value in value[i].items():
+                        if _key == 'pred_captions':
+                            # outputs[key][i][_key] = _value[:,-1:]
+                            outputs[key][i][_key] = _value
+                        elif _key == 'pred_captionings':
+                            outputs[key][i][_key] = _value
+        
+
+        class GatherLayer(torch.autograd.Function):
+            """
+            Gather tensors from all workers with support for backward propagation:
+            This implementation does not cut the gradients as torch.distributed.all_gather does.
+            """
+
+            @staticmethod
+            def forward(ctx, x):
+                output = [torch.zeros_like(x) for _ in range(torch.distributed.get_world_size())]
+                torch.distributed.all_gather(output, x)
+                return tuple(output)
+
+            @staticmethod
+            def backward(ctx, *grads):
+                all_gradients = torch.stack(grads)
+                torch.distributed.all_reduce(all_gradients)
+                return all_gradients[torch.distributed.get_rank()]
+
+
+        @torch.no_grad()
+        def concat_all_gather(tensor):
+            """
+            Performs all_gather operation on the provided tensors.
+            *** Warning ***: torch.distributed.all_gather has no gradient.
+            """
+            tensors_gather = [torch.ones_like(tensor)
+                for _ in range(torch.distributed.get_world_size())]
+            torch.distributed.all_gather(tensors_gather, tensor, async_op=False)
+
+            output = torch.cat(tensors_gather, dim=0)
+            return output     
+        
+        
+        def all_gather_with_grad(tensors):
+            """
+            Performs all_gather operation on the provided tensors.
+            Graph remains connected for backward grad computation.
+            """
+            # Queue the gathered tensors
+            world_size = torch.distributed.get_world_size()
+            # There is no need for reduction in the single-proc case
+            if world_size == 1:
+                return tensors
+
+            tensor_all = GatherLayer.apply(tensors)
+
+            return torch.cat(tensor_all, dim=0)
+                
+        
+        ###============== Image-text Matching ===================###
+        
+        v_emb = outputs['pred_captions'][:,-1]
+        t_emb = torch.cat([x['caption_proj'] for x in targets_vlp], dim=0)
+        
+        # image_embeds = outputs['pred_captions'][:,:-1]
+        
+        idx = torch.cat([x['image_id'] for x in targets_vlp], dim=0).view(-1,1)
+        idxs = concat_all_gather(idx)
+        
+        # check: normalize
+        image_feat = F.normalize(v_emb, dim=-1)
+        text_feat = F.normalize(t_emb, dim=-1)
+        
+        # compute similarity
+        with torch.no_grad():
+            mask = torch.eq(idx, idxs.t())
+            image_feat_world = concat_all_gather(image_feat)
+            text_feat_world = concat_all_gather(text_feat)
+            # image_feat_world = image_feat
+            # text_feat_world = text_feat
+            
+            sim_i2t = image_feat @ text_feat_world.t() / 0.0174 
+            sim_t2i = text_feat @ image_feat_world.t() / 0.0174 
+
+            weights_i2t = F.softmax(sim_i2t,dim=1)
+            weights_i2t.masked_fill_(mask, 0)            
+
+            weights_t2i = F.softmax(sim_t2i,dim=1)
+            weights_t2i.masked_fill_(mask, 0)     
+        
+        
+        
+        # image_embeds_world = all_gather_with_grad(image_embeds)
+        # image_embeds_world = image_embeds
+        
+        
+        # select a negative image (from all ranks) for each text
+        # image_embeds_neg = []    
+        # for b in range(images.shape[0]):
+        #     neg_idx = torch.multinomial(weights_t2i[b], 1).item()
+        #     image_embeds_neg.append(image_embeds_world[neg_idx])
+        # image_embeds_neg = torch.stack(image_embeds_neg,dim=0)   
+
+
+        # select a negative text (from all ranks) for each image
+        image_id_world = concat_all_gather(torch.cat([x['image_id'] for x in targets_vlp], dim=0))
+        caption_tokens_world = concat_all_gather(torch.cat([x['caption_tokens'] for x in targets_vlp], dim=0))
+        caption_proj_world = concat_all_gather(torch.cat([x['caption_proj'] for x in targets_vlp], dim=0))
+        caption_tokenids_world = concat_all_gather(torch.cat([x['caption_tokenids'] for x in targets_vlp], dim=0))
+        caption_mask_world = concat_all_gather(torch.cat([x['caption_mask'] for x in targets_vlp], dim=0))
+        # image_id_world = torch.cat([x['image_id'] for x in targets_vlp], dim=0)
+        # caption_tokens_world = torch.cat([x['caption_tokens'] for x in targets_vlp], dim=0)
+        # caption_proj_world = torch.cat([x['caption_proj'] for x in targets_vlp], dim=0)
+        # caption_tokenids_world = torch.cat([x['caption_tokenids'] for x in targets_vlp], dim=0)
+        # caption_mask_world = torch.cat([x['caption_mask'] for x in targets_vlp], dim=0)
+                
+        image_id = []
+        caption_tokens = []
+        caption_proj = []
+        caption_tokenids = []
+        caption_mask = []
+        for b in range(images.shape[0]):
+            neg_idx = torch.multinomial(weights_i2t[b], 1).item()
+            image_id.append(image_id_world[neg_idx].unsqueeze(0))
+            caption_tokens.append(caption_tokens_world[neg_idx].unsqueeze(0))
+            caption_proj.append(caption_proj_world[neg_idx].unsqueeze(0))
+            caption_tokenids.append(caption_tokenids_world[neg_idx].unsqueeze(0))
+            caption_mask.append(caption_mask_world[neg_idx].unsqueeze(0))
+
+        shuffled_targets_vlp = [{'image_id': a, 'caption_tokens': b, 'caption_proj': c, 'caption_tokenids': d, 'caption_mask': e}
+                               for a, b, c, d, e in  zip(image_id, caption_tokens, caption_proj, caption_tokenids, caption_mask)]
+        shuffled_outputs = self.sem_seg_head(x_list, upscaled_embedding_list, src_list, target_queries=None, target_vlp=shuffled_targets_vlp, task='vlp', extra=extra) 
+                
+        vl_embeddings = torch.cat([outputs['pred_captionings'][:,-1,:], shuffled_outputs['pred_captionings'][:,-1,:]],dim=0)
+        vl_output = self.itm_head(vl_embeddings)   
+        
+        self.criterion.losses = self.losses['vlp'] # seg criterion losses
+        losses = self.criterion.forward_vlp(outputs, vl_output, targets_vlp, extra)
+        del outputs
+
+        if self.task_switch['retrieval'] and self.retrieval_emsemble:
+            # compute backbone vlp.
+            v_emb = x_list['res5']
+            bs,nc,_,_ = v_emb.shape
+            v_emb = v_emb.reshape(bs,nc,-1)
+            v_emb = F.adaptive_avg_pool1d(v_emb, 1).reshape(bs,nc) @ self.backbone_proj
+            t_emb = torch.cat([x['caption_proj'] for x in targets_vlp], dim=0)
+            loss_contrast = image_text_contrastive_loss_queue(v_emb, t_emb, self.sem_seg_head.predictor.lang_encoder, None)
+            losses['loss_retrieval_backbone_0'] = loss_contrast
+        return losses
+
+
     def forward_vlp(self, batched_inputs):
         images = torch.cat([x["image"].flip(0).to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
         images = (images - self.pixel_mean) / self.pixel_std
@@ -491,7 +681,8 @@ class GeneralizedXdecoder(nn.Module):
             input_ids=targets_llm["input_ids"],
             attention_mask=targets_llm["attention_mask"],
             labels=targets_llm["labels"],
-            images=self.img_to_lang(outputs['image_feature'][-1])
+            images=self.img_to_lang(outputs['image_feature'][-1]),
+            bit_flag=self.bit_flag
         )
 
         return {'loss_llm': llm_outputs.loss}
@@ -1153,6 +1344,7 @@ class GeneralizedXdecoder(nn.Module):
             target_vlp = []
             for cnt, x in enumerate(batched_inputs):
                 target_dict = {}
+                target_dict["image_id"] = torch.tensor(x['image_id']).unsqueeze(0).to(self.device)
                 target_dict["caption_tokens"] = lang_results['token_emb'][cnt:cnt+1]
                 target_dict["caption_proj"] = lang_results['class_emb'][cnt:cnt+1]
                 target_dict["caption_tokenids"] = lang_results['tokens']['input_ids'][cnt:cnt+1]

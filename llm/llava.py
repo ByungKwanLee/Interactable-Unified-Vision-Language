@@ -65,6 +65,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         images: Optional[torch.FloatTensor] = None,
         return_dict: Optional[bool] = None,
         task: Optional[str] = None,
+        bit_flag: Optional[bool] = False
     ) -> Union[Tuple, CausalLMOutputWithPast]:
 
         if inputs_embeds is None:
@@ -81,7 +82,8 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 attention_mask,
                 past_key_values,
                 labels,
-                images
+                images,
+                bit_flag=bit_flag
             )
 
         return super().forward(

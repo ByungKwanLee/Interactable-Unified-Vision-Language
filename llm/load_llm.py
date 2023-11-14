@@ -5,6 +5,27 @@ from transformers import BitsAndBytesConfig
 from .llava import LlavaLlamaForCausalLM
 from .utils import *
 
+
+def prepare_model_for_kbit_training(model):
+    loaded_in_kbit = getattr(model, "is_loaded_in_8bit", False) or getattr(model, "is_loaded_in_4bit", False)
+
+    # freeze 
+    for param in model.parameters(): param.requires_grad = False
+
+    # cast all non INT8 parameters to fp32
+    # for param in model.parameters():
+    #     if (param.dtype == torch.float16) or (param.dtype == torch.bfloat16):
+    #         param.data = param.data.to(torch.float32)
+
+    if loaded_in_kbit:
+        # For backward compatibility
+        model.enable_input_require_grads()
+        # enable gradient checkpointing for memory efficiency
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={'use_reentrant': False})
+        
+    return model
+
+
 def prepare_llm(bits=16, double_quant=True, bf16=True, quant_type='nf4', ckpt="/mnt/ssd/lbk-cvpr/checkpoints/vicuna-7b-v1.5"):
     
     bnb_model_from_pretrained_args = {}
@@ -24,9 +45,12 @@ def prepare_llm(bits=16, double_quant=True, bf16=True, quant_type='nf4', ckpt="/
         ))
 
     model = LlavaLlamaForCausalLM.from_pretrained(ckpt, cache_dir=False, **bnb_model_from_pretrained_args)
-    if bits == 16 and bf16: model.to(torch.bfloat16)
-    for param in model.parameters(): param.requires_grad = False
-            
+    model.config.use_cache = False
+    
+    # PEFT for gradient checkpointing   
+    if bits in [4, 8]: model.config.torch_dtype=torch.bfloat16
+    model = prepare_model_for_kbit_training(model)
+                
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         ckpt,
         cache_dir=False,

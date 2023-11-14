@@ -53,7 +53,7 @@ SOLVER:
 # Define Test/Trainer/Saving
 PIPELINE: XDecoderPipeline
 TRAINER: xdecoder
-SAVE_DIR: '/mnt/hard/lbk-cvpr/syslearner'
+SAVE_DIR: '/mnt/ssd/lbk-cvpr/syslearner'
 base_path: "./"
 
 # Resume Logistic

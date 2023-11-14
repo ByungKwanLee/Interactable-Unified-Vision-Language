@@ -231,6 +231,46 @@ class SetCriterion(nn.Module):
         losses = {"loss_retrieval_decoder_0": loss_contrast + loss_contrast_fine * 0.5}
         return losses
 
+    def loss_itc_itm(self, outputs, vl_output, targets, indices, num_masks, layer_id, extra):
+        if layer_id >= self.top_x_layers['retrieval']:
+            return {"loss_retrieval_decoder_0": 0}
+        t_emb = torch.cat([x['caption_proj'] for x in targets], dim=0)
+        v_emb = outputs['pred_captions'][:,-1]
+        loss_contrast = image_text_contrastive_loss_queue(v_emb, t_emb, extra['lang_encoder'], extra['training'])
+
+        # compute query-token contrastive loss
+        ttk_emb = torch.cat([x['caption_tokens'] for x in targets], dim=0)
+        ttk_mask = torch.cat([x['caption_mask'] for x in targets], dim=0).float()
+        ttk_mask = ttk_mask * torch.cumsum(ttk_mask, dim=1)
+        vtk_emb = outputs['pred_captions'][:,:-1]
+        keep = torch.cat([x['caption_mask'] for x in targets], dim=0).bool()
+
+        ttk_emb = ttk_emb / (ttk_emb.norm(dim=-1, keepdim=True) + 1e-7)
+        vtk_emb = vtk_emb / (vtk_emb.norm(dim=-1, keepdim=True) + 1e-7)
+        logit_scale = extra['lang_encoder'].logit_scale.exp().clamp(max=100)
+
+        # prepare gt
+        gt = (torch.eye(vtk_emb.shape[0]).type_as(ttk_mask).unsqueeze(-1) * ttk_mask.unsqueeze(0).repeat(vtk_emb.shape[0], 1, 1))[:,keep].flatten(1)
+        gt = gt / (gt.sum(1, keepdim=True) + 1e-7)
+        # compute i2t loss
+        logits = logit_scale * (vtk_emb @ ttk_emb[keep].transpose(0, 1)).mean(1)
+        loss_contrast_fine_vt = SoftTargetCrossEntropy()(logits, gt)
+        # loss_contrast_fine = loss_contrast_fine_vt # i2t only
+
+        # compute t2i loss
+        bs, nq, _ = vtk_emb.shape
+        logits = logit_scale * (ttk_emb @ vtk_emb.flatten(0,1).transpose(0, 1)).reshape(bs,-1,bs,nq).mean(dim=-1)[keep,:]
+        loss_contrast_fine_tv = SoftTargetCrossEntropy()(logits, gt.t())
+        # compute loss
+        loss_contrast_fine = (loss_contrast_fine_vt * 0.7 + loss_contrast_fine_tv * 0.3)
+        
+        # itm loss
+        itm_labels = torch.cat([torch.ones(bs,dtype=torch.long),torch.zeros(bs,dtype=torch.long)], dim=0).to(t_emb.device)
+        loss_itm = F.cross_entropy(vl_output, itm_labels)
+
+        losses = {"loss_retrieval_decoder_0": loss_contrast + loss_contrast_fine * 0.5 + loss_itm}
+        return losses
+
     def loss_captionings(self, outputs, targets, indices, num_masks, layer_id, extra):
         # INSTP
         try:
