@@ -112,7 +112,7 @@ class VQADatasetMapper:
         tfm_gens = build_transform_gen(cfg, is_train)
 
         tokenizer = build_tokenizer(cfg['MODEL']['TEXT'])
-        max_token_num = 2048
+        max_token_num = 1024
         device = cfg['device']
 
         ret = {

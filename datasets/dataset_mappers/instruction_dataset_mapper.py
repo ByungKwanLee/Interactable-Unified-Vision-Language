@@ -107,7 +107,7 @@ class InstructionDatasetMapper:
         tfm_gens = build_transform_gen(cfg, is_train)
 
         tokenizer = build_tokenizer(cfg['MODEL']['TEXT'])
-        max_token_num = 2048
+        max_token_num = 1024
         device = cfg['device']
 
         ret = {
@@ -244,8 +244,8 @@ class InstructionDatasetMapper:
 
         attention_masks = (target != -100).type(torch.float32)
 
-        # Pad to length 2048
-        # max_length = 2048
+        # Pad to length 1024
+        # max_length = 1024
         # input_ids = F.pad(input_ids, (0, max_length - input_ids.size(-1)))
         # targets = F.pad(targets, (0, max_length - targets.size(-1)), value=IGNORE_INDEX)
         # attention_masks = F.pad(attention_masks, (0, max_length - attention_masks.size(-1)))

@@ -9,7 +9,7 @@
 DATASETS:
   TRAIN: ["instruction_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  TEST: ["vqav2_val"]
+  TEST: ["refcocog_val_umd", "vlp_val"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
@@ -26,6 +26,7 @@ SOLVER:
   BASE_LR: 0.0001
   BASE_LR_END: 0.000001
   MAX_ITER: 1
+  STEPS: [1]
   WARMUP_FACTOR: 0.3
   WARMUP_ITERS: 10
   WARMUP_METHOD: "linear"

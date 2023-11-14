@@ -30,7 +30,7 @@ def prepare_llm(bits=16, double_quant=True, bf16=True, quant_type='nf4', ckpt="/
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         ckpt,
         cache_dir=False,
-        model_max_length=2048,
+        model_max_length=1024,
         padding_side="right",
         use_fast=False,
     )
