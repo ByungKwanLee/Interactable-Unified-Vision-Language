@@ -108,7 +108,7 @@ MODEL:
   DECODER:
     NAME: xdecoder
     TRANSFORMER_IN_FEATURE: "multi_scale_pixel_decoder"
-    MASK: False
+    MASK: True
     GROUNDING:
       ENABLED: True
       MAX_LEN: 5

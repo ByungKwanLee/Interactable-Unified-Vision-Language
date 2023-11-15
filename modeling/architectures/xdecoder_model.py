@@ -301,7 +301,7 @@ class GeneralizedXdecoder(nn.Module):
         
         if self.training:
             losses = {}
-            if self.task_switch['mask']:
+            if self.task_switch['mask'] and (not 'instruction' in batched_inputs.keys()):
                 if 'coco' in batched_inputs.keys(): losses.update(self.forward_seg(batched_inputs['coco']))
             if self.task_switch['retrieval'] or self.task_switch['captioning']:
                                 
@@ -314,7 +314,8 @@ class GeneralizedXdecoder(nn.Module):
 
             for k in list(losses.keys()):
                 if k in self.criterion.weight_dict:
-                    if  ('grounding' in k) or ('mask' in k): # fine-tuning for ref-coco, LBK EDIT
+                    # if  ('grounding' in k) or ('mask' in k): # fine-tuning for ref-coco, LBK EDIT
+                    if True:
                         losses[k] *= self.criterion.weight_dict[k]
                     else: # remove this loss if not specified in `weight_dict`
                         losses[k] *= 0
@@ -654,6 +655,8 @@ class GeneralizedXdecoder(nn.Module):
         return losses
 
     def forward_llm(self, batched_inputs):
+        # task switch False
+        self.task_switch['mask']=False
         images = torch.cat([x["image"].flip(0).to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
         images = (images - self.pixel_mean) / self.pixel_std
 
@@ -685,6 +688,9 @@ class GeneralizedXdecoder(nn.Module):
             bit_flag=self.bit_flag
         )
 
+        # task switch True
+        self.task_switch['mask']=True
+        
         return {'loss_llm': llm_outputs.loss}
 
     def evaluate(self, batched_inputs):

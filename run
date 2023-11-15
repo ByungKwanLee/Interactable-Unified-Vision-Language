@@ -105,6 +105,7 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             MODEL.DECODER.GROUNDING.CLASS_WEIGHT 0.5 \
             INSTRUCT.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
             INSTRUCT.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
+            REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
             VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
             WEIGHT True \
