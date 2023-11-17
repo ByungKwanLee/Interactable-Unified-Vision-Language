@@ -27,8 +27,10 @@ class BaseModel(nn.Module):
             result_dicts[model_key] = model_state_dict[model_key]
         torch.save(result_dicts, os.path.join(save_dir, f'epoch{epoch}', f"syslearner.pt"))
         if self.opt['Load_LLM']:
-            self.model.llm.save_pretrained(os.path.join(save_dir, f'epoch{epoch}', "llm"))
-            self.model.llm_tokenizer.save_pretrained(os.path.join(save_dir, f'epoch{epoch}', "llm"))
+            llm_path = os.path.join(save_dir, f'epoch{epoch}', "llm")
+            os.makedirs(llm_path, exist_ok=True)
+            self.model.llm.save_pretrained(llm_path)
+            self.model.llm_tokenizer.save_pretrained(llm_path)
 
     def from_pretrained(self, load_dir):
         if self.opt['Load_LLM']:

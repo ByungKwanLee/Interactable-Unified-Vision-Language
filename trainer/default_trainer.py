@@ -234,6 +234,7 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
                 if self.min_length_dataset == batch_idx + 1: break
 
                 if batch_idx in [eval_period, eval_period*2, eval_period*3]:
+                    self.save_checkpoint(epoch+1)
                     results = self._eval_on_set()
                     if self.opt['rank'] == 0: self.dictionary_display(results)
                     if self.opt['rank'] == 0 and self.opt['WANDB']: wandb.log(results)
