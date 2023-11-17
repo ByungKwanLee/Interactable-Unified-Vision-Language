@@ -82,21 +82,6 @@ class UtilsTrainer(DistributedTrainer):
             os.makedirs(save_dir, exist_ok=True)
 
         if self.opt['rank'] == 0:
-            if self.opt['FP16']:
-                amp_state = self.grad_scaler.state_dict()
-            else:
-                amp_state = None
-            for module_name in self.model_names:
-                module_save_dir = os.path.join(save_dir, module_name)
-                os.makedirs(module_save_dir, exist_ok=True)
-                save_path = os.path.join(module_save_dir, f'epoch{epoch}_module_training_states.pt')
-                state = {'module': self.models[module_name].state_dict(),
-                            'optimizer': self.optimizers[module_name].state_dict(),
-                            'lr_scheduler': self.lr_schedulers[module_name].state_dict(),
-                            'amp_state': amp_state,}
-                torch.save(state, save_path)
-
-        if self.opt['rank'] == 0:
             for module_name in self.model_names:
                 module_save_dir = os.path.join(save_dir, module_name)
                 self.raw_models[module_name].save_pretrained(module_save_dir, epoch)

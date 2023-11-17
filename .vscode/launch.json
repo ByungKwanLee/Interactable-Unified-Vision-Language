@@ -118,7 +118,10 @@
             "SOLVER.LR_MULTIPLIER.lang_encoder", "0.1", 
             "WEIGHT", "True", 
             "RESUME_FROM", 
-            "/mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt"],
+            "/mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3/syslearner.pt"],
+
+            // /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/llm_epoch1_model_state_dict.pt
+            // /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
             
         }
     ]

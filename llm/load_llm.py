@@ -43,14 +43,13 @@ def prepare_llm(bits=16, double_quant=True, bf16=True, quant_type='nf4', ckpt="/
                 bnb_4bit_quant_type=quant_type # {'fp4', 'nf4'}
             )
         ))
-
     model = LlavaLlamaForCausalLM.from_pretrained(ckpt, cache_dir=False, **bnb_model_from_pretrained_args)
     model.config.use_cache = False
     
     # PEFT for gradient checkpointing   
     if bits in [4, 8]: model.config.torch_dtype=torch.bfloat16
     model = prepare_model_for_kbit_training(model)
-                
+
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         ckpt,
         cache_dir=False,
@@ -59,6 +58,32 @@ def prepare_llm(bits=16, double_quant=True, bf16=True, quant_type='nf4', ckpt="/
         use_fast=False,
     )
     tokenizer.pad_token = tokenizer.unk_token
+
+
+    """
+    # [Step1] tokenizer 
+    input_ids = tokenizer(
+                "What the fucking LLM! Who are you?",
+                return_tensors="pt",
+                padding="longest",
+                max_length=50,
+                truncation=True,
+            ).input_ids.cuda()
+    
+    
+    # [Step2] llm prediction
+    with torch.inference_mode():
+        output_ids = model.generate(
+            input_ids=input_ids,
+            max_new_tokens=128,
+            min_length=1,
+            no_repeat_ngram_size=3,
+            num_beams=5)
+        
+    # [Step3] llm prediction to string
+    llm_outputs = tokenizer.batch_decode(output_ids[:, input_ids.shape[1]:], skip_special_tokens=True)[0]
+    llm_outputs = llm_outputs.strip()
+    """
 
     # penetrate return
     return model, tokenizer, DataCollatorForSupervisedDataset(tokenizer=tokenizer)

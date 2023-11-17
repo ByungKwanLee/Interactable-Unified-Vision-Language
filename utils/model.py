@@ -36,9 +36,10 @@ def align_and_update_state_dicts(model_state_dict, ckpt_state_dict):
     unmatched_log = []
     unloaded_log = []
 
+    filtered_model_keys = list(filter(lambda x: not x.startswith('llms.'), model_keys))
     filtered_ckpt_keys = list(filter(lambda x: not x.startswith('backbone.'), ckpt_keys))
 
-    for model_key in model_keys:
+    for model_key in filtered_model_keys:
         model_weight = model_state_dict[model_key]
         if model_key in filtered_ckpt_keys:
             ckpt_weight = ckpt_state_dict[model_key]
