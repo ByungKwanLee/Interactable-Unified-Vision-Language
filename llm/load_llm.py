@@ -43,7 +43,7 @@ def prepare_llm(bits=16, double_quant=True, bf16=True, quant_type='nf4', ckpt="/
                 bnb_4bit_quant_type=quant_type # {'fp4', 'nf4'}
             )
         ))
-    model = LlavaLlamaForCausalLM.from_pretrained(ckpt, cache_dir=False, **bnb_model_from_pretrained_args)
+    model = LlavaLlamaForCausalLM.from_pretrained(ckpt, cache_dir=False, low_cpu_mem_usage=True, **bnb_model_from_pretrained_args)
     model.config.use_cache = False
     
     # PEFT for gradient checkpointing   
