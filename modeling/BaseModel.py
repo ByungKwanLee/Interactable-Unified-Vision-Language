@@ -35,8 +35,12 @@ class BaseModel(nn.Module):
     def from_pretrained(self, load_dir):
         if self.opt['Load_LLM']:
             try:
-                self.model.llm.from_pretrained(os.path.join("/".join(load_dir.split('/')[:-1]), 'llm'))
-                self.model.llm_tokenizer.from_pretrained(os.path.join("/".join(load_dir.split('/')[:-1]), 'llm'))
+                self.model.llm.from_pretrained(os.path.join("/".join(load_dir.split('/')[:-1]), 'llm'), cache_dir=False, low_cpu_mem_usage=True)
+                self.model.llm_tokenizer.from_pretrained(os.path.join("/".join(load_dir.split('/')[:-1]), 'llm'),
+                                                        cache_dir=False,
+                                                        model_max_length=1024,
+                                                        padding_side="right",
+                                                        use_fast=False)
             except:
                 print('There are no LLM pretrained file: {}'.format(os.path.join("/".join(load_dir.split('/')[:-1]))))
         state_dict = torch.load(load_dir, map_location=self.opt['device'])
