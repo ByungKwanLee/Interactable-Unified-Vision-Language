@@ -252,7 +252,7 @@ class XDecoder(nn.Module):
             self_tgt_mask = pad_tgt_mask
             output = torch.cat((output, output[:-1]), dim=0)
             query_embed = torch.cat((query_embed, query_embed[:-1]), dim=0) # also pad language embdding to fix embedding
-        elif self.training and (task == 'llm' or task=='vqa'):
+        elif task == 'llm' or task=='vqa':
             self_tgt_mask = self.self_attn_mask[:,:self.num_queries,:self.num_queries].repeat(output.shape[1]*self.num_heads, 1, 1)
             # initialize with negative attention at the beginning.
             pad_tgt_mask = torch.ones((1, self.num_queries + self.contxt_len, self.num_queries + self.contxt_len), device=self_tgt_mask.device).bool().repeat(output.shape[1]*self.num_heads, 1, 1)
