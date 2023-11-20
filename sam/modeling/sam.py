@@ -53,20 +53,20 @@ class Sam(nn.Module):
     def forward(
         self,
         batched_input: List[Dict[str, Any]],
-        multimask_output: bool,
+        multimask_output: bool = False,
     ) -> List[Dict[str, torch.Tensor]]:
         
         input_images = torch.stack([x["image"] for x in batched_input], dim=0)
-        image_embeddings, x_list = self.image_encoder(input_images)
+        image_embeddings, hier_embeddings_dict = self.image_encoder(input_images)
         
         # prompting encodeing for flexible inputs
         _, _, H, W = input_images.shape
         self.prompt_encoder.input_image_size = (H, W)
         self.prompt_encoder.image_embedding_size = (H//16, W//16)
 
-        hyper_in_list = []
-        upscaled_embedding_list = []
+        # LBK Pop
         src_list = []
+        hyper_in_list = []
         for image_record, curr_embedding in zip(batched_input, image_embeddings):
           if "point_coords" in image_record:
               points = (image_record["point_coords"], image_record["point_labels"])
@@ -77,25 +77,32 @@ class Sam(nn.Module):
               boxes=image_record.get("boxes", None),
               masks=image_record.get("mask_inputs", None),
           )
-          low_res_masks, iou_predictions, hyper_in, upscaled_embedding, src = self.mask_decoder(
+          src_dict, hyper_in = self.mask_decoder(
               image_embeddings=curr_embedding.unsqueeze(0),
               image_pe=self.prompt_encoder.get_dense_pe(),
               sparse_prompt_embeddings=sparse_embeddings,
               dense_prompt_embeddings=dense_embeddings,
               multimask_output=multimask_output,
           )
-          hyper_in_list.append(hyper_in)
-          upscaled_embedding_list.append(upscaled_embedding)
-          src_list.append(src)
+          src_list.append(src_dict)
+          hyper_in_list.append(hyper_in[:, 0, :])
 
-        return x_list, hyper_in_list, upscaled_embedding_list, src_list
+        # output format transformation, LBK EDIT
+        src_empty_dict = {k: [] for k, _ in src_list[0].items()}
+        for x in src_list:
+            for k, v in x.items():
+                src_empty_dict[k].append(v.unsqueeze(0))
+        src_output_dict = {k: torch.cat(v, dim=0) for k, v in src_empty_dict.items()}
+        hyper_in_features = torch.cat([x.unsqueeze(0) for x in hyper_in_list], dim=0)
+
+        return hier_embeddings_dict, src_output_dict, hyper_in_features
 
 
     # Image Embedding for Interactive SAM
     @torch.no_grad()
     def forward_image_embedding(self, images):
-        image_embeddings, x_list = self.image_encoder(images)
-        return image_embeddings, x_list
+        image_embeddings, hier_embeddings_dict = self.image_encoder(images)
+        return image_embeddings, hier_embeddings_dict
 
     # Image Embedding for Interactive SAM
     @torch.no_grad()
@@ -103,12 +110,11 @@ class Sam(nn.Module):
         self,
         image_embeddings: torch.Tensor,
         batched_input: List[Dict[str, Any]],
-        multimask_output: bool,
+        multimask_output: bool=False,
     ) -> List[Dict[str, torch.Tensor]]:
         
-        hyper_in_list = []
-        upscaled_embedding_list = []
         src_list = []
+        hyper_in_list = []
         for image_record, curr_embedding in zip(batched_input, image_embeddings):
           if "point_coords" in image_record:
               points = (image_record["point_coords"], image_record["point_labels"])
@@ -119,15 +125,22 @@ class Sam(nn.Module):
               boxes=image_record.get("boxes", None),
               masks=image_record.get("mask_inputs", None),
           )
-          low_res_masks, iou_predictions, hyper_in, upscaled_embedding, src = self.mask_decoder(
+          src_dict, hyper_in = self.mask_decoder(
               image_embeddings=curr_embedding.unsqueeze(0),
               image_pe=self.prompt_encoder.get_dense_pe(),
               sparse_prompt_embeddings=sparse_embeddings,
               dense_prompt_embeddings=dense_embeddings,
               multimask_output=multimask_output,
           )
-          hyper_in_list.append(hyper_in)
-          upscaled_embedding_list.append(upscaled_embedding)
-          src_list.append(src)
+          src_list.append(src_dict)
+          hyper_in_list.append(hyper_in[:, 0, :])
+        
+        # output format transformation, LBK EDIT
+        src_empty_dict = {k: [] for k, _ in src_list[0].items()}
+        for x in src_list:
+            for k, v in x.items():
+                src_empty_dict[k].append(v.unsqueeze(0))
+        src_output_dict = {k: torch.cat(v, dim=0) for k, v in src_empty_dict.items()}
+        hyper_in_features = torch.cat([x.unsqueeze(0) for x in hyper_in_list], dim=0)
 
-        return hyper_in_list, upscaled_embedding_list, src_list
+        return src_output_dict, hyper_in_features
