@@ -1,45 +1,45 @@
 #!/usr/bin/env bash
 
 # VLP - Stage1 (Pretrained)
-# GPU_DEVICE="0,1,2,3,4,5"
-# length=${#GPU_DEVICE}
-# port=$(($RANDOM%10000+30000))
-# n_gpu=$(((length+1)/2))
-# image_bath=40
-# lang_batch=80
-# test_batch=4
+GPU_DEVICE="0,1,2,3,4,5"
+length=${#GPU_DEVICE}
+port=$(($RANDOM%10000+30000))
+n_gpu=$(((length+1)/2))
+image_bath=3
+lang_batch=30
+test_batch=4
 
-# CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
-#             --conf_files configs/step1_vlp.yaml \
-#             --overrides \
-#             FP16 True \
-#             PORT $port \
-#             WANDB True \
-#             MODEL.DECODER.CAPTIONING.ENABLED True \
-#             MODEL.DECODER.RETRIEVAL.ENABLED True \
-#             MODEL.DECODER.GROUNDING.ENABLED True \
-#             MODEL.DECODER.CAPTIONING_WEIGHT 8 \
-#             MODEL.DECODER.RETRIEVAL_WEIGHT 8 \
-#             MODEL.DECODER.TOP_CAPTIONING_LAYERS 3 \
-#             MODEL.DECODER.TOP_RETRIEVAL_LAYERS 3 \
-#             MODEL.DECODER.TOP_GROUNDING_LAYERS 6 \
-#             MODEL.DECODER.GROUNDING.TEXT_WEIGHT 2.0 \
-#             MODEL.DECODER.GROUNDING.CLASS_WEIGHT 0.5 \
-#             COCO.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
-#             COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
-#             VLP.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
-#             VLP.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
-#             COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
-#             ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
-#             VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
-#             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
-#             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
-#             WEIGHT True \
-#             RESUME_FROM /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3_model_state_dict.pt
-#             # /home/junho/lbk/sam_xdecoder/ckpt/run_5/default/epoch1_model_state_dict.pt
-#             # /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
-#             # /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
-#             # /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch1_model_state_dict.pt
+CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
+            --conf_files configs/step1_vlp.yaml \
+            --overrides \
+            FP16 True \
+            PORT $port \
+            WANDB True \
+            MODEL.DECODER.CAPTIONING.ENABLED True \
+            MODEL.DECODER.RETRIEVAL.ENABLED True \
+            MODEL.DECODER.GROUNDING.ENABLED True \
+            MODEL.DECODER.CAPTIONING_WEIGHT 8 \
+            MODEL.DECODER.RETRIEVAL_WEIGHT 8 \
+            MODEL.DECODER.TOP_CAPTIONING_LAYERS 3 \
+            MODEL.DECODER.TOP_RETRIEVAL_LAYERS 3 \
+            MODEL.DECODER.TOP_GROUNDING_LAYERS 6 \
+            MODEL.DECODER.GROUNDING.TEXT_WEIGHT 2.0 \
+            MODEL.DECODER.GROUNDING.CLASS_WEIGHT 0.5 \
+            COCO.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
+            COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
+            VLP.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
+            VLP.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
+            COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
+            ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
+            VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
+            REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
+            SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
+            WEIGHT True \
+            RESUME_FROM /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
+            # /home/junho/lbk/sam_xdecoder/ckpt/run_5/default/epoch1_model_state_dict.pt
+            # /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
+            # /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
+            # /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch1_model_state_dict.pt
 
 
 
@@ -80,36 +80,73 @@
 
 
 # INSTRUCTION
-GPU_DEVICE="0,1,2,3,4,5,6,7"
-length=${#GPU_DEVICE}
-n_gpu=$(((length+1)/2))
-port=$(($RANDOM%10000+30000))
-lang_batch=6
-test_batch=4
+# GPU_DEVICE="0,1,2,3,4,5,6,7"
+# length=${#GPU_DEVICE}
+# n_gpu=$(((length+1)/2))
+# port=$(($RANDOM%10000+30000))
+# lang_batch=6
+# test_batch=4
 
-CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
-            --conf_files configs/step2_instruction.yaml \
-            --overrides \
-            FP16 True \
-            PORT $port \
-            WANDB True \
-            MODEL.DECODER.CAPTIONING.ENABLED True \
-            MODEL.DECODER.RETRIEVAL.ENABLED True \
-            MODEL.DECODER.GROUNDING.ENABLED True \
-            MODEL.DECODER.CAPTIONING_WEIGHT 8 \
-            MODEL.DECODER.RETRIEVAL_WEIGHT 8 \
-            MODEL.DECODER.TOP_CAPTIONING_LAYERS 3 \
-            MODEL.DECODER.TOP_RETRIEVAL_LAYERS 3 \
-            MODEL.DECODER.TOP_GROUNDING_LAYERS 6 \
-            MODEL.DECODER.GROUNDING.TEXT_WEIGHT 2.0 \
-            MODEL.DECODER.GROUNDING.CLASS_WEIGHT 0.5 \
-            INSTRUCT.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
-            INSTRUCT.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
-            REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
-            VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
-            SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
-            WEIGHT True \
-            RESUME_FROM /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3/syslearner.pt
+# CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
+#             --conf_files configs/step2_instruction.yaml \
+#             --overrides \
+#             FP16 True \
+#             PORT $port \
+#             WANDB True \
+#             MODEL.DECODER.CAPTIONING.ENABLED True \
+#             MODEL.DECODER.RETRIEVAL.ENABLED True \
+#             MODEL.DECODER.GROUNDING.ENABLED True \
+#             MODEL.DECODER.CAPTIONING_WEIGHT 8 \
+#             MODEL.DECODER.RETRIEVAL_WEIGHT 8 \
+#             MODEL.DECODER.TOP_CAPTIONING_LAYERS 3 \
+#             MODEL.DECODER.TOP_RETRIEVAL_LAYERS 3 \
+#             MODEL.DECODER.TOP_GROUNDING_LAYERS 6 \
+#             MODEL.DECODER.GROUNDING.TEXT_WEIGHT 2.0 \
+#             MODEL.DECODER.GROUNDING.CLASS_WEIGHT 0.5 \
+#             INSTRUCT.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
+#             INSTRUCT.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
+#             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
+#             VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
+#             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
+#             WEIGHT True \
+#             RESUME_FROM /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3_model_state_dict.pt
+#             # /home/junho/lbk/sam_xdecoder/ckpt/run_5/default/epoch1_model_state_dict.pt
+#             # /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
+#             # /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
+#             # /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch1_model_state_dict.pt
+
+
+# INSTRUCTION
+# GPU_DEVICE="0,1,2,3,4,5,6,7"
+# length=${#GPU_DEVICE}
+# n_gpu=$(((length+1)/2))
+# port=$(($RANDOM%10000+30000))
+# lang_batch=6
+# test_batch=4
+
+# CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
+#             --conf_files configs/step2_instruction.yaml \
+#             --overrides \
+#             FP16 True \
+#             PORT $port \
+#             WANDB True \
+#             MODEL.DECODER.CAPTIONING.ENABLED True \
+#             MODEL.DECODER.RETRIEVAL.ENABLED True \
+#             MODEL.DECODER.GROUNDING.ENABLED True \
+#             MODEL.DECODER.CAPTIONING_WEIGHT 8 \
+#             MODEL.DECODER.RETRIEVAL_WEIGHT 8 \
+#             MODEL.DECODER.TOP_CAPTIONING_LAYERS 3 \
+#             MODEL.DECODER.TOP_RETRIEVAL_LAYERS 3 \
+#             MODEL.DECODER.TOP_GROUNDING_LAYERS 6 \
+#             MODEL.DECODER.GROUNDING.TEXT_WEIGHT 2.0 \
+#             MODEL.DECODER.GROUNDING.CLASS_WEIGHT 0.5 \
+#             INSTRUCT.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
+#             INSTRUCT.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
+#             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
+#             VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
+#             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
+#             WEIGHT True \
+#             RESUME_FROM /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3/syslearner.pt
 
 # VQA Eval
 # GPU_DEVICE="0,1,2,3,4,5,6,7"

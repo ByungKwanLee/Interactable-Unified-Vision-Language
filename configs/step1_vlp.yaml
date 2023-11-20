@@ -23,7 +23,7 @@ VOC:
 DATASETS:
   TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "vlp_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  TEST: ["refcocog_val_umd", "vlp_val"] # ["pascalvoc_val_Point"]
+  TEST: ["coco_2017_val_panoptic_with_sem_seg", "refcocog_val_umd", "vlp_val"] # ["pascalvoc_val_Point"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
@@ -67,7 +67,7 @@ SOLVER:
 # Define Test/Trainer/Saving
 PIPELINE: XDecoderPipeline
 TRAINER: xdecoder
-SAVE_DIR: '/mnt/ssd/lbk-cvpr/syslearner'
+SAVE_DIR: '/mnt/hard/lbk-cvpr/syslearner'
 base_path: "./"
 
 # Resume Logistic
@@ -80,7 +80,7 @@ PYLEARN_MODEL: '' # model resume when evaluation
 # Logging and Debug
 WANDB: true
 LOG_EVERY: 100
-FIND_UNUSED_PARAMETERS: false
+FIND_UNUSED_PARAMETERS: true
 
 # Speed up training
 FP16: true

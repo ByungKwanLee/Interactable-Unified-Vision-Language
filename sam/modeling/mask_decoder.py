@@ -91,7 +91,7 @@ class MaskDecoder(nn.Module):
           torch.Tensor: batched predicted masks
           torch.Tensor: batched predictions of mask quality
         """
-        masks, iou_pred, hyper_in, upscaled_embedding, src = self.predict_masks(
+        src_dict, hyper_in = self.predict_masks(
             image_embeddings=image_embeddings,
             image_pe=image_pe,
             sparse_prompt_embeddings=sparse_prompt_embeddings,
@@ -99,15 +99,15 @@ class MaskDecoder(nn.Module):
         )
 
         # Select the correct mask or masks for output
-        if multimask_output:
-            mask_slice = slice(1, None)
-        else:
-            mask_slice = slice(0, 1)
-        masks = masks[:, mask_slice, :, :]
-        iou_pred = iou_pred[:, mask_slice]
+        # if multimask_output:
+        #     mask_slice = slice(1, None)
+        # else:
+        #     mask_slice = slice(0, 1)
+        # masks = masks[:, mask_slice, :, :]
+        # iou_pred = iou_pred[:, mask_slice]
 
         # Prepare output
-        return masks, iou_pred, hyper_in, upscaled_embedding, src
+        return src_dict, hyper_in
 
     # by LBK EDIT
     @staticmethod
@@ -150,30 +150,42 @@ class MaskDecoder(nn.Module):
         # Run the transformer
         # by LBK EDIT
         try:
-            hs, src = self.transformer(src, pos_src, tokens)
+            hs, src, src_list = self.transformer(src, pos_src, tokens)
         except:
-            hs, src = self.transformer(src, self.interpolate(pos_src, *src.shape[2:]), tokens)
+            hs, src, src_list = self.transformer(src, self.interpolate(pos_src, *src.shape[2:]), tokens)
         iou_token_out = hs[:, 0, :]
         mask_tokens_out = hs[:, 1 : (1 + self.num_mask_tokens), :]
 
+        # LBK EDIT, src list transformation
+        src_list = [x.transpose(1, 2).view(b, c, h, w) for x in src_list]
+
         # Upscale mask embeddings and predict masks using the mask tokens
         src = src.transpose(1, 2).view(b, c, h, w)
-        upscaled_embedding = self.output_upscaling(src)
+
+        # LBK EDIT, src
+        for f in self.output_upscaling:
+            src = f(src)
+            if f._get_name() == 'GELU': src_list.append(src)
+
+        upscaled_embedding = src
         hyper_in_list: List[torch.Tensor] = []
         for i in range(self.num_mask_tokens):
             hyper_in_list.append(self.output_hypernetworks_mlps[i](mask_tokens_out[:, i, :]))
         hyper_in = torch.stack(hyper_in_list, dim=1)
         b, c, h, w = upscaled_embedding.shape
-        masks = (hyper_in @ upscaled_embedding.view(b, c, h * w)).view(b, -1, h, w)
+        # masks = (hyper_in @ upscaled_embedding.view(b, c, h * w)).view(b, -1, h, w)
 
         # Generate mask quality predictions
-        iou_pred = self.iou_prediction_head(iou_token_out)
+        # iou_pred = self.iou_prediction_head(iou_token_out)
 
         # original code 
         # return masks, iou_pred
+
+        # LBK transformation for src_dict
+        src_dict = {f'res{i+2}': x for i, x in enumerate(src_list[::-1])}
     
         # LBK EDIT
-        return masks, iou_pred, hyper_in, upscaled_embedding, src
+        return src_dict, hyper_in
 
 
 # Lightly adapted from

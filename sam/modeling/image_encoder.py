@@ -102,8 +102,7 @@ class ImageEncoderViT(nn.Module):
             ),
             LayerNorm2d(out_chans),
         )
-        self.index_save = [3, 6, 8, 11]
-        self.key_list = {3: 'res2', 6: 'res3', 8: 'res4', 11: 'res5'}
+        self.key_list = {3: 'res2', 6: 'res3', 9: 'res4'}
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         
@@ -116,14 +115,15 @@ class ImageEncoderViT(nn.Module):
             except:
                 x = x + self.interpolate_pos_encoding(*x.shape[1:3])
         
-        x_list = {}
+        x_dict = {}
         for idx, blk in enumerate(self.blocks):
             x = blk(x)
-            if idx in self.index_save: x_list[self.key_list[idx]] = x.permute(0, 3, 1, 2)
+            if idx in self.key_list.keys(): x_dict[self.key_list[idx]] = x.permute(0, 3, 1, 2)
 
         x = self.neck(x.permute(0, 3, 1, 2))
+        x_dict['res5'] = x
 
-        return x, x_list
+        return x, x_dict
     
     # by LBK EDIT
     def interpolate_pos_encoding(self, h, w):

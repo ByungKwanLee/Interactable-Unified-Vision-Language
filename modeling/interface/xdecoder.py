@@ -20,6 +20,7 @@ from .build import register_decoder
 from .modules import SelfAttentionLayer, CrossAttentionLayer, FFNLayer, MLP
 from ..utils import configurable
 from ..modules import PositionEmbeddingSine
+from .resampler import PerceiverResampler
 
 
 class XDecoder(nn.Module):
@@ -154,9 +155,9 @@ class XDecoder(nn.Module):
         self.register_buffer("self_attn_mask", self_attn_mask)
 
         # LBK EDIT
-        self.feature_size = 64
-        self.sam_pler = nn.Conv3d(in_channels=32, out_channels=syslearner_dim, kernel_size=(1, self.feature_size, self.feature_size)) # 3D Conv
-        # self.sam_pler = nn.Conv2d(in_channels=32, out_channels=syslearner_dim, kernel_size=(1, 1)) # MLP
+        self.sam_pler_post = PerceiverResampler(num_latents=num_queries-1)
+        self.sam_pler_pre = nn.Linear(32, 512)
+        self.sam_pler = lambda x: self.sam_pler_post(self.sam_pler_pre(x)).squeeze(1)
 
 
     @classmethod
@@ -193,30 +194,17 @@ class XDecoder(nn.Module):
 
         return ret
 
-    def forward(self, upscaled_embedding_list, x, mask_features, mask=None, target_queries=None, target_vlp=None, task='seg', extra={}):
+    def forward(self, hyper_in_features, x, mask_features, mask=None, target_queries=None, target_vlp=None, task='seg', extra={}):
         if task == 'captioning_infer':
-            return self.forward_captioning(upscaled_embedding_list, x, mask_features, mask=mask, target_queries=target_queries, target_vlp=target_vlp, task=task, extra=extra)
+            return self.forward_captioning(hyper_in_features, x, mask_features, mask=mask, target_queries=target_queries, target_vlp=target_vlp, task=task, extra=extra)
         # x is a list of multi-scale feature
         assert len(x) == self.num_feature_levels
         src = []
         pos = []
         size_list = []
 
-        # embedding tensor
-        visual_query_list = []
-        for upscaled_embedding in upscaled_embedding_list:
-            interp_upscaled_embedding = F.interpolate(upscaled_embedding, size=(self.feature_size, self.feature_size), mode='bilinear') # 3D Conv
-            out = self.sam_pler(interp_upscaled_embedding.transpose(0, 1).contiguous().unsqueeze(0)).squeeze(3, 4).permute(2, 0, 1) # 3D Conv
-            # out = self.sam_pler(upscaled_embedding.contiguous()).mean(dim=(2,3)).unsqueeze(1) # MLP (GAP)
-            visual_query_list.append(out)
-        visual_queries = torch.cat(visual_query_list, dim=1)
-        visual_queries = visual_queries[torch.randperm(visual_queries.shape[0])]
-
         # computationally efficient propagation
-        # upscaled_embedding_feat = torch.cat([
-        #     F.interpolate(upscaled_embedding, size=(self.feature_size, self.feature_size), mode='bilinear').unsqueeze(0) 
-        #     for upscaled_embedding in upscaled_embedding_list], dim=0)
-        # visual_queries = self.sam_pler(upscaled_embedding_feat.transpose(1, 2).contiguous()).squeeze(3, 4).permute(2, 0, 1)
+        visual_queries = self.sam_pler(hyper_in_features).transpose(0, 1)
 
         # disable mask, it does not affect performance
         del mask
@@ -264,7 +252,7 @@ class XDecoder(nn.Module):
             self_tgt_mask = pad_tgt_mask
             output = torch.cat((output, output[:-1]), dim=0)
             query_embed = torch.cat((query_embed, query_embed[:-1]), dim=0) # also pad language embdding to fix embedding
-        elif self.training and (task == 'llm' or task=='vqa'):
+        elif task == 'llm' or task=='vqa':
             self_tgt_mask = self.self_attn_mask[:,:self.num_queries,:self.num_queries].repeat(output.shape[1]*self.num_heads, 1, 1)
             # initialize with negative attention at the beginning.
             pad_tgt_mask = torch.ones((1, self.num_queries + self.contxt_len, self.num_queries + self.contxt_len), device=self_tgt_mask.device).bool().repeat(output.shape[1]*self.num_heads, 1, 1)
@@ -351,29 +339,15 @@ class XDecoder(nn.Module):
             }
             return out
 
-    def forward_captioning(self, upscaled_embedding_list, x, mask_features, mask = None, target_queries = None, target_vlp = None, task='seg', extra={}):
+    def forward_captioning(self, hyper_in_features, x, mask_features, mask = None, target_queries = None, target_vlp = None, task='seg', extra={}):
         # x is a list of multi-scale feature
         assert len(x) == self.num_feature_levels
         src = []
         pos = []
         size_list = []
         
-        # embedding tensor
-        visual_query_list = []
-        for upscaled_embedding in upscaled_embedding_list:
-            interp_upscaled_embedding = F.interpolate(upscaled_embedding, size=(self.feature_size, self.feature_size), mode='bilinear') # 3D Conv
-            out = self.sam_pler(interp_upscaled_embedding.transpose(0, 1).contiguous().unsqueeze(0)).squeeze(3, 4).permute(2, 0, 1) # 3D Conv
-            # out = self.sam_pler(upscaled_embedding.contiguous()).mean(dim=(2,3)).unsqueeze(1) # MLP (GAP)
-            visual_query_list.append(out)
-        visual_queries = torch.cat(visual_query_list, dim=1)
-        visual_queries = visual_queries[torch.randperm(visual_queries.shape[0])]
-
-        # computationally efficient propagation 
-        # upscaled_embedding_feat = torch.cat([
-        #     F.interpolate(upscaled_embedding, size=(self.feature_size, self.feature_size), mode='bilinear').unsqueeze(0) 
-        #     for upscaled_embedding in upscaled_embedding_list], dim=0)
-        # visual_queries = self.sam_pler(upscaled_embedding_feat.transpose(1, 2).contiguous()).squeeze(3, 4).permute(2, 0, 1)
-
+        # computationally efficient propagation
+        visual_queries = self.sam_pler(hyper_in_features).transpose(0, 1)
 
         # disable mask, it does not affect performance
         del mask
