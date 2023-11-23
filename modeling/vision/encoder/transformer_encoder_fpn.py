@@ -179,6 +179,7 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
     @configurable
     def __init__(
         self,
+        num_mask: int,
         sam_size: str,
         conv_dim: int,
         mask_dim: int,
@@ -197,25 +198,25 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
         self.in_features = ['res2', 'res3', 'res4', 'res5']  # starting from "res2" to "res5"
 
         # res2/res3/res4/res5, LBK
-        self.sam_pler_res2 = nn.Conv3d(100, 1, kernel_size=1)
+        self.sam_pler_res2 = nn.Conv3d(num_mask, 1, kernel_size=1)
         self.input_proj_res2 = nn.Sequential(Conv2d(32, 512, kernel_size=1),
                                       nn.Dropout(),
                                       Conv2d(512, 512, kernel_size=1),
                                       nn.ReLU())
 
-        self.sam_pler_res3 = nn.Conv3d(100, 1, kernel_size=1)
+        self.sam_pler_res3 = nn.Conv3d(num_mask, 1, kernel_size=1)
         self.input_proj_res3 = nn.Sequential(Conv2d(64, 512, kernel_size=1),
                                       nn.Dropout(),
                                       Conv2d(512, 512, kernel_size=1),
                                       nn.ReLU())
 
-        self.sam_pler_res4 = nn.Conv3d(100, 1, kernel_size=1)
+        self.sam_pler_res4 = nn.Conv3d(num_mask, 1, kernel_size=1)
         self.input_proj_res4 = nn.Sequential(Conv2d(256, 512, kernel_size=1),
                                       nn.Dropout(),
                                       Conv2d(512, 512, kernel_size=1),
                                       nn.ReLU())
 
-        self.sam_pler_res5 = nn.Conv3d(100, 1, kernel_size=1)
+        self.sam_pler_res5 = nn.Conv3d(num_mask, 1, kernel_size=1)
         self.input_proj_res5 = nn.Sequential(Conv2d(256, 512, kernel_size=1),
                                       nn.Dropout(),
                                       Conv2d(512, 512, kernel_size=1),
@@ -246,6 +247,7 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
     def from_config(cls, cfg):
         ret = super().from_config(cfg)
         ret['mask_on'] = cfg['MODEL']['DECODER']['MASK']
+        ret['num_mask'] = cfg['NUM_GRIDS_HORIZON']**2
         return ret
 
     def forward(self, features, src_outputs_dict):

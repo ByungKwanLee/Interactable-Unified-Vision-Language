@@ -23,7 +23,7 @@ VOC:
 DATASETS:
   TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "vlp_train"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  TEST: ["coco_2017_val_panoptic_with_sem_seg", "refcocog_val_umd", "vlp_val"] # ["pascalvoc_val_Point"]
+  TEST: ["coco_2017_val_panoptic_with_sem_seg", "refcocog_val_umd", "vlp_val", "vlp_captioning_val"] # ["pascalvoc_val_Point"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
@@ -31,7 +31,7 @@ DATASETS:
 Load_LLM: false
 
 # SAM Image Resolution
-IMG_RESOLUTION: 1024
+IMG_RESOLUTION: 256
 NUM_GRIDS_HORIZON: 10
 SAM_SIZE: 'huge' # base/large/huge
 
@@ -62,7 +62,7 @@ SOLVER:
     NORM_TYPE: 2.0
   AMP:
     ENABLED: True
-  MAX_NUM_EPOCHS: 20 #50
+  MAX_NUM_EPOCHS: 10 #50
 
 # Define Test/Trainer/Saving
 PIPELINE: XDecoderPipeline
@@ -182,7 +182,7 @@ COCO:
     MIN_SIZE_TRAIN_SAMPLING: 'choice'
     MIN_SIZE_TEST: 800
     MAX_SIZE_TEST: 1333
-    IMAGE_SIZE: 1024
+    IMAGE_SIZE: 256
     MIN_SCALE: 1.0
     MAX_SCALE: 1.0
     DATASET_MAPPER_NAME: "coco_panoptic_lsj"
@@ -212,14 +212,14 @@ COCO:
     SHUFFLE: true
   DATALOADER:
     FILTER_EMPTY_ANNOTATIONS: False
-    NUM_WORKERS: 2
+    NUM_WORKERS: 0
     LOAD_PROPOSALS: False
     SAMPLER_TRAIN: "TrainingSampler"
     ASPECT_RATIO_GROUPING: True
 
 VLP:
   INPUT:
-    IMAGE_SIZE: 224
+    IMAGE_SIZE: 256
     DATASET_MAPPER_NAME: "vlpretrain"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
@@ -235,7 +235,7 @@ VLP:
     BATCH_SIZE_TOTAL: 8
   DATALOADER:
     FILTER_EMPTY_ANNOTATIONS: False
-    NUM_WORKERS: 4
+    NUM_WORKERS: 0
     LOAD_PROPOSALS: False
     SAMPLER_TRAIN: "TrainingSampler"
     ASPECT_RATIO_GROUPING: True

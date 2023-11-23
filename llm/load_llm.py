@@ -26,7 +26,7 @@ def prepare_model_for_kbit_training(model):
     return model
 
 
-def prepare_llm(bits=16, double_quant=True, bf16=True, quant_type='nf4', ckpt="/mnt/ssd/lbk-cvpr/checkpoints/vicuna-7b-v1.5"):
+def prepare_llm(bits=16, double_quant=True, quant_type='nf4', ckpt="/mnt/ssd/lbk-cvpr/checkpoints/vicuna-7b-v1.5"):
     
     bnb_model_from_pretrained_args = {}
     if bits in [4, 8]:
@@ -36,8 +36,6 @@ def prepare_llm(bits=16, double_quant=True, bf16=True, quant_type='nf4', ckpt="/
             quantization_config=BitsAndBytesConfig(
                 load_in_4bit=bits == 4,
                 load_in_8bit=bits == 8,
-                llm_int8_threshold=6.0,
-                llm_int8_has_fp16_weight=False,
                 bnb_4bit_compute_dtype=torch.bfloat16,
                 bnb_4bit_use_double_quant=double_quant,
                 bnb_4bit_quant_type=quant_type # {'fp4', 'nf4'}
@@ -59,6 +57,16 @@ def prepare_llm(bits=16, double_quant=True, bf16=True, quant_type='nf4', ckpt="/
     )
     tokenizer.pad_token = tokenizer.unk_token
 
+    if bits in [4, 8]:
+        from peft.tuners.lora import LoraLayer
+        for name, module in model.named_modules():
+            if isinstance(module, LoraLayer):
+                module = module.to(torch.bfloat16)
+            if 'norm' in name:
+                module = module.to(torch.float16)
+            if 'lm_head' in name or 'embed_tokens' in name:
+                if hasattr(module, 'weight'):
+                    module = module.to(torch.bfloat16)
 
     """
     # [Step1] tokenizer 

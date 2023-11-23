@@ -155,9 +155,13 @@ class XDecoder(nn.Module):
         self.register_buffer("self_attn_mask", self_attn_mask)
 
         # LBK EDIT
-        self.sam_pler_post = PerceiverResampler(num_latents=num_queries-1)
-        self.sam_pler_pre = nn.Linear(32, 512)
-        self.sam_pler = lambda x: self.sam_pler_post(self.sam_pler_pre(x)).squeeze(1)
+        self.sam_pler_post1 = PerceiverResampler(num_latents=num_queries-1)
+        self.sam_pler_pre1 = nn.Linear(32, 512)
+        self.sam_pler1 = lambda x: self.sam_pler_post1(self.sam_pler_pre1(x)).squeeze(1)
+        
+        self.sam_pler_post2 = PerceiverResampler(num_latents=num_queries-1)
+        self.sam_pler_pre2 = nn.Linear(32, 512)
+        self.sam_pler2 = lambda x: self.sam_pler_post2(self.sam_pler_pre2(x)).squeeze(1)
 
 
     @classmethod
@@ -203,9 +207,6 @@ class XDecoder(nn.Module):
         pos = []
         size_list = []
 
-        # computationally efficient propagation
-        visual_queries = self.sam_pler(hyper_in_features).transpose(0, 1)
-
         # disable mask, it does not affect performance
         del mask
         for i in range(self.num_feature_levels):
@@ -222,8 +223,8 @@ class XDecoder(nn.Module):
         # QxNxC (Q=100+1)
         query_embed = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1) # positional embedding [101, B, syslearner_dim]
         output = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1) # learnable feature [101, B, syslearner_dim]
-        query_embed[:-1, ...] += visual_queries 
-        output[:-1, ...] += visual_queries 
+        query_embed[:-1, ...] += self.sam_pler1(hyper_in_features).transpose(0, 1) 
+        output[:-1, ...] += self.sam_pler1(hyper_in_features).transpose(0, 1) 
 
         predictions_image_feat = []
         predictions_class = []
@@ -345,9 +346,6 @@ class XDecoder(nn.Module):
         src = []
         pos = []
         size_list = []
-        
-        # computationally efficient propagation
-        visual_queries = self.sam_pler(hyper_in_features).transpose(0, 1)
 
         # disable mask, it does not affect performance
         del mask
@@ -365,8 +363,8 @@ class XDecoder(nn.Module):
         # QxNxC
         query_embed_ = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1)
         query_feat = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1)   
-        query_embed_[:-1, ...] += visual_queries 
-        query_feat[:-1, ...] += visual_queries 
+        query_embed_[:-1, ...] += self.sam_pler2(hyper_in_features).transpose(0, 1) 
+        query_feat[:-1, ...] += self.sam_pler2(hyper_in_features).transpose(0, 1) 
         caping_lang_token = extra['start_token'].repeat(bs, 1)
         pos_embed_caping = self.pos_embed_caping.weight.unsqueeze(1).repeat(1, bs, 1)
 
