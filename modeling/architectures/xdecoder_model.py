@@ -323,23 +323,26 @@ class GeneralizedXdecoder(nn.Module):
                     losses.pop(k)
             return losses
         else:
+            self.sam.eval()
             if mode == 'retrieval':
-                return self.evaluate_retrieval(batched_inputs)
+                results = self.evaluate_retrieval(batched_inputs)
             elif mode == 'captioning':
-                return self.evaluate_captioning(batched_inputs)
+                results = self.evaluate_captioning(batched_inputs)
             elif mode == 'llm_captioning':
-                return self.evaluate_llm_captioning(batched_inputs)
+                results = self.evaluate_llm_captioning(batched_inputs)
             elif mode == 'classification':
-                return self.evaluate_classification(batched_inputs)
+                results = self.evaluate_classification(batched_inputs)
             elif mode == 'grounding_refcoco':
-                return self.evaluate_grounding(batched_inputs)
+                results = self.evaluate_grounding(batched_inputs)
             elif mode == 'interactive':
-                return self.evaluate_interactive(batched_inputs)
+                results = self.evaluate_interactive(batched_inputs)
             elif mode == 'vqa':
-                return self.evaluate_vqa(batched_inputs)
+                results = self.evaluate_vqa(batched_inputs)
             else:
-                return self.evaluate(batched_inputs)
-
+                results = self.evaluate(batched_inputs)
+            self.sam.train()
+            return results
+        
     # LBK SAM Input Generator
     def sam_input_generator(self, images):
         input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
@@ -423,8 +426,8 @@ class GeneralizedXdecoder(nn.Module):
                  "training": self.training}
 
         # LBK SAM propagation
-        hier_embeddings_dict, src_output_dict, hyper_in_features = self.sam(self.sam_input_generator(images))
-        outputs = self.sem_seg_head(hier_embeddings_dict, src_output_dict, hyper_in_features, target_queries=None, target_vlp=targets_vlp, task='vlp', extra=extra)
+        hier_embeddings_dict, src_output_features, hyper_in_features = self.sam(self.sam_input_generator(images))
+        outputs = self.sem_seg_head(hier_embeddings_dict, src_output_features, hyper_in_features, target_queries=None, target_vlp=targets_vlp, task='vlp', extra=extra)
         
         
         for key, value in outputs.items():
@@ -566,7 +569,7 @@ class GeneralizedXdecoder(nn.Module):
 
         shuffled_targets_vlp = [{'image_id': a, 'caption_tokens': b, 'caption_proj': c, 'caption_tokenids': d, 'caption_mask': e}
                                for a, b, c, d, e in  zip(image_id, caption_tokens, caption_proj, caption_tokenids, caption_mask)]
-        shuffled_outputs = self.sem_seg_head(src_output_dict, hyper_in_features, target_queries=None, target_vlp=shuffled_targets_vlp, task='vlp', extra=extra) 
+        shuffled_outputs = self.sem_seg_head(src_output_features, hyper_in_features, target_queries=None, target_vlp=shuffled_targets_vlp, task='vlp', extra=extra) 
                 
         vl_embeddings = torch.cat([outputs['pred_captionings'][:,-1,:], shuffled_outputs['pred_captionings'][:,-1,:]],dim=0)
         vl_output = self.itm_head(vl_embeddings)   
@@ -598,8 +601,8 @@ class GeneralizedXdecoder(nn.Module):
                  "training": self.training}
 
         # LBK SAM propagation
-        hier_embeddings_dict, src_output_dict, hyper_in_features = self.sam(self.sam_input_generator(images))
-        outputs = self.sem_seg_head(hier_embeddings_dict, src_output_dict, hyper_in_features, target_queries=None, target_vlp=targets_vlp, task='vlp', extra=extra)
+        hier_embeddings_dict, src_output_features, hyper_in_features = self.sam(self.sam_input_generator(images))
+        outputs = self.sem_seg_head(hier_embeddings_dict, src_output_features, hyper_in_features, target_queries=None, target_vlp=targets_vlp, task='vlp', extra=extra)
 
         for key, value in outputs.items():
             if key == 'pred_captionings':
@@ -733,8 +736,8 @@ class GeneralizedXdecoder(nn.Module):
         targets = targets_grounding = queries_grounding = None
         
         # LBK SAM propagation
-        hier_embeddings_dict, src_output_dict, hyper_in_features = self.sam(self.sam_input_generator(images))
-        outputs = self.sem_seg_head(hier_embeddings_dict, src_output_dict, hyper_in_features, target_queries=queries_grounding)
+        hier_embeddings_dict, src_output_features, hyper_in_features = self.sam(self.sam_input_generator(images))
+        outputs = self.sem_seg_head(hier_embeddings_dict, src_output_features, hyper_in_features, target_queries=queries_grounding)
         v_emb_it = outputs['pred_captions'][:,-1]
 
         # compute backbone score
@@ -769,7 +772,6 @@ class GeneralizedXdecoder(nn.Module):
             processed_results[-1]["caption"] = caption_results            
 
         del hier_embeddings_dict
-        del src_output_dict
         return processed_results
 
     def evaluate_captioning(self, batched_inputs):
@@ -903,7 +905,7 @@ class GeneralizedXdecoder(nn.Module):
         images = (images - self.pixel_mean) / self.pixel_std
         
         # LBK SAM propagation
-        hier_embeddings_dict, src_outputs_dict, hyper_in_features = self.sam(self.sam_input_generator(images))
+        hier_embeddings_dict, src_output_features, hyper_in_features = self.sam(self.sam_input_generator(images))
 
         extra = {}
         # comment for multi object inference.
@@ -919,7 +921,7 @@ class GeneralizedXdecoder(nn.Module):
             extra['grounding_tokens'] = query_emb[:,None]
 
             outputs = self.sem_seg_head({k: v[idx].unsqueeze(0) for k, v in hier_embeddings_dict.items()},
-                                        {k: v[idx].unsqueeze(0) for k, v in src_outputs_dict.items()}, 
+                                        src_output_features[idx].unsqueeze(0), 
                                         hyper_in_features[idx].unsqueeze(0),
                                        extra=extra, task='grounding_eval')
 
@@ -1015,8 +1017,8 @@ class GeneralizedXdecoder(nn.Module):
                 sam_input = [{'point_coords': sam_point_coords, 'point_labels': sam_point_labels}]
 
                 # LBK SAM propagation - (2)
-                src_list, hyper_in_list = self.sam.decode_from_embedding(image_embeddings, sam_input)
-                outputs = self.sem_seg_head(hier_embeddings_dict, src_list, hyper_in_list, target_queries=None)
+                src_output_features, hyper_in_list = self.sam.decode_from_embedding(image_embeddings, sam_input)
+                outputs = self.sem_seg_head(hier_embeddings_dict, src_output_features, hyper_in_list, target_queries=None)
 
                 # upsample masks
                 mask_pred_results = F.interpolate(
@@ -1057,8 +1059,8 @@ class GeneralizedXdecoder(nn.Module):
             sam_input = [{'boxes': sam_box_coords}]
 
             # LBK SAM propagation - (2)
-            src_output_dict, hyper_in_features = self.sam.decode_from_embedding(image_embeddings, sam_input)
-            outputs = self.sem_seg_head(hier_embeddings_dict, src_output_dict, hyper_in_features, target_queries=None)
+            src_output_features, hyper_in_features = self.sam.decode_from_embedding(image_embeddings, sam_input)
+            outputs = self.sem_seg_head(hier_embeddings_dict, src_output_features, hyper_in_features, target_queries=None)
 
             # upsample masks
             mask_pred_results = F.interpolate(
@@ -1098,8 +1100,8 @@ class GeneralizedXdecoder(nn.Module):
             sam_input = [{'point_coords': sam_point_coords, 'point_labels': sam_point_labels}]
 
             # LBK SAM propagation - (2)
-            src_output_dict, hyper_in_features = self.sam.decode_from_embedding(image_embeddings, sam_input)
-            outputs = self.sem_seg_head(hier_embeddings_dict, src_output_dict, hyper_in_features, hyper_in_list, target_queries=None)
+            src_output_features, hyper_in_features = self.sam.decode_from_embedding(image_embeddings, sam_input)
+            outputs = self.sem_seg_head(hier_embeddings_dict, src_output_features, hyper_in_features, hyper_in_list, target_queries=None)
 
             # upsample masks
             mask_pred_results = F.interpolate(
@@ -1180,61 +1182,29 @@ class GeneralizedXdecoder(nn.Module):
         return merged_masks
 
 
-    # VLP 
     def prepare_vlp_targets(self, batched_inputs):
-        # INSTP
-        try:
-            input_ids = []
-            attention_mask = []
-            labels = []
-            for cnt, x in enumerate(batched_inputs):
-                captions = x['captions']
-                randid = random.randint(0, len(captions)-1)
-                input_ids += x['tokens']['input_ids'][randid:randid+1]
-                attention_mask += x['tokens']['attention_mask'][randid:randid+1]
-                labels += x['tokens']['labels']
+        input_ids = []
+        attention_mask = []
+        for cnt, x in enumerate(batched_inputs):
+            captions = x['captions']
+            randid = random.randint(0, len(captions)-1)
+            input_ids += x['tokens']['input_ids'][randid:randid+1]
+            attention_mask += x['tokens']['attention_mask'][randid:randid+1]
 
-            input_ids = torch.stack(input_ids)
-            attention_mask = torch.stack(attention_mask)
-            labels = torch.stack(labels)
-            tokens = {"input_ids": input_ids, "attention_mask": attention_mask, 'labels': labels}
-            lang_results = self.sem_seg_head.predictor.lang_encoder.get_instruction_token_embeddings(tokens, token=True)
+        input_ids = torch.stack(input_ids)
+        attention_mask = torch.stack(attention_mask)
+        tokens = {"input_ids": input_ids, "attention_mask": attention_mask}
+        lang_results = self.sem_seg_head.predictor.lang_encoder.get_text_token_embeddings(tokens, token=True)
 
-            target_vlp = []
-            for cnt, x in enumerate(batched_inputs):
-                target_dict = {}
-                target_dict["caption_tokens"] = lang_results['token_emb'][cnt:cnt+1]
-                target_dict["caption_proj"] = lang_results['class_emb'][cnt:cnt+1]
-                target_dict["caption_tokenids"] = lang_results['tokens']['input_ids'][cnt:cnt+1]
-                target_dict["caption_mask"] = lang_results['tokens']['attention_mask'][cnt:cnt+1]
-                target_dict["caption_label"] = lang_results['tokens']['labels'][cnt:cnt+1]              
-                target_vlp.append(target_dict)
-            return target_vlp
-        # VLP
-        except:
-            input_ids = []
-            attention_mask = []
-            for cnt, x in enumerate(batched_inputs):
-                captions = x['captions']
-                randid = random.randint(0, len(captions)-1)
-                input_ids += x['tokens']['input_ids'][randid:randid+1]
-                attention_mask += x['tokens']['attention_mask'][randid:randid+1]
-
-            input_ids = torch.stack(input_ids)
-            attention_mask = torch.stack(attention_mask)
-            tokens = {"input_ids": input_ids, "attention_mask": attention_mask}
-            lang_results = self.sem_seg_head.predictor.lang_encoder.get_text_token_embeddings(tokens, token=True)
-
-            target_vlp = []
-            for cnt, x in enumerate(batched_inputs):
-                target_dict = {}
-                target_dict["image_id"] = torch.tensor(x['image_id']).unsqueeze(0).to(self.device)
-                target_dict["caption_tokens"] = lang_results['token_emb'][cnt:cnt+1]
-                target_dict["caption_proj"] = lang_results['class_emb'][cnt:cnt+1]
-                target_dict["caption_tokenids"] = lang_results['tokens']['input_ids'][cnt:cnt+1]
-                target_dict["caption_mask"] = lang_results['tokens']['attention_mask'][cnt:cnt+1]            
-                target_vlp.append(target_dict)
-            return target_vlp
+        target_vlp = []
+        for cnt, x in enumerate(batched_inputs):
+            target_dict = {}
+            target_dict["caption_tokens"] = lang_results['token_emb'][cnt:cnt+1]
+            target_dict["caption_proj"] = lang_results['class_emb'][cnt:cnt+1]
+            target_dict["caption_tokenids"] = lang_results['tokens']['input_ids'][cnt:cnt+1]
+            target_dict["caption_mask"] = lang_results['tokens']['attention_mask'][cnt:cnt+1]            
+            target_vlp.append(target_dict)
+        return target_vlp
 
     # LLM 
     def prepare_llm_targets(self, batched_inputs):

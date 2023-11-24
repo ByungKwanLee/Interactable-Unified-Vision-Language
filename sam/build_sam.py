@@ -102,10 +102,15 @@ def _build_sam(
         pixel_mean=[123.675, 116.28, 103.53],
         pixel_std=[58.395, 57.12, 57.375],
     )
-    sam.eval()
+    sam.train()
     if checkpoint is not None:
         with open(checkpoint, "rb") as f:
             state_dict = torch.load(f)
         sam.load_state_dict(state_dict)
-    for param in sam.parameters(): param.requires_grad = False # LBK EDIT
+    # LBK EDIT
+    for name, param in sam.named_parameters():
+        # if name.startswith('mask_decoder.'):
+        #     param.requires_grad = True
+        # else:
+        param.requires_grad = True
     return sam

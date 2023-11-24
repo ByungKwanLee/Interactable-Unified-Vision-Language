@@ -49,7 +49,6 @@ class Sam(nn.Module):
         return self.pixel_mean.device
 
     # Batch Individual Mask Generation by LBK
-    @torch.no_grad()
     def forward(
         self,
         batched_input: List[Dict[str, Any]],
@@ -77,35 +76,29 @@ class Sam(nn.Module):
               boxes=image_record.get("boxes", None),
               masks=image_record.get("mask_inputs", None),
           )
-          src_dict, hyper_in = self.mask_decoder(
+          src_outputs, hyper_in = self.mask_decoder(
               image_embeddings=curr_embedding.unsqueeze(0),
               image_pe=self.prompt_encoder.get_dense_pe(),
               sparse_prompt_embeddings=sparse_embeddings,
               dense_prompt_embeddings=dense_embeddings,
               multimask_output=multimask_output,
           )
-          src_list.append(src_dict)
+          src_list.append(src_outputs)
           hyper_in_list.append(hyper_in[:, 0, :])
 
         # output format transformation, LBK EDIT
-        src_empty_dict = {k: [] for k, _ in src_list[0].items()}
-        for x in src_list:
-            for k, v in x.items():
-                src_empty_dict[k].append(v.unsqueeze(0))
-        src_output_dict = {k: torch.cat(v, dim=0) for k, v in src_empty_dict.items()}
+        src_output_features = torch.cat([x.unsqueeze(0) for x in src_list], dim=0)
         hyper_in_features = torch.cat([x.unsqueeze(0) for x in hyper_in_list], dim=0)
 
-        return hier_embeddings_dict, src_output_dict, hyper_in_features
+        return hier_embeddings_dict, src_output_features, hyper_in_features
 
 
     # Image Embedding for Interactive SAM
-    @torch.no_grad()
     def forward_image_embedding(self, images):
         image_embeddings, hier_embeddings_dict = self.image_encoder(images)
         return image_embeddings, hier_embeddings_dict
 
     # Image Embedding for Interactive SAM
-    @torch.no_grad()
     def decode_from_embedding(
         self,
         image_embeddings: torch.Tensor,
@@ -125,22 +118,18 @@ class Sam(nn.Module):
               boxes=image_record.get("boxes", None),
               masks=image_record.get("mask_inputs", None),
           )
-          src_dict, hyper_in = self.mask_decoder(
+          src_outputs, hyper_in = self.mask_decoder(
               image_embeddings=curr_embedding.unsqueeze(0),
               image_pe=self.prompt_encoder.get_dense_pe(),
               sparse_prompt_embeddings=sparse_embeddings,
               dense_prompt_embeddings=dense_embeddings,
               multimask_output=multimask_output,
           )
-          src_list.append(src_dict)
+          src_list.append(src_outputs)
           hyper_in_list.append(hyper_in[:, 0, :])
-        
+
         # output format transformation, LBK EDIT
-        src_empty_dict = {k: [] for k, _ in src_list[0].items()}
-        for x in src_list:
-            for k, v in x.items():
-                src_empty_dict[k].append(v.unsqueeze(0))
-        src_output_dict = {k: torch.cat(v, dim=0) for k, v in src_empty_dict.items()}
+        src_output_features = torch.cat([x.unsqueeze(0) for x in src_list], dim=0)
         hyper_in_features = torch.cat([x.unsqueeze(0) for x in hyper_in_list], dim=0)
 
-        return src_output_dict, hyper_in_features
+        return src_output_features, hyper_in_features

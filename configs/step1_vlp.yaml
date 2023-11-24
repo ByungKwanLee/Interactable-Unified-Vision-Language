@@ -51,7 +51,7 @@ SOLVER:
   OPTIMIZER: "ADAMW"
   LR_SCHEDULER_NAME: "WarmupMultiStepLR"
   LR_MULTIPLIER:
-    backbone: 0.1
+    sam: 0.1
     lang_encoder: 0.1
   WEIGHT_DECAY_NORM: 0.0
   WEIGHT_DECAY_EMBED: 0.0

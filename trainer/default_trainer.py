@@ -193,8 +193,11 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
             print(f'DATASET/Task: [{key}]\n')
             for _key, _value in value.items():
                 print(f'{_key}:')
-                for __key, __value in _value.items():
-                    print(f'    {__key}: {__value}')
+                try:
+                    for __key, __value in _value.items():
+                        print(f'    {__key}: {__value}')
+                except:
+                    print(_value)
             print('-------------------')
         print('\n')
 

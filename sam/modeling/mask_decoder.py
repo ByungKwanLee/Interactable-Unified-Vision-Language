@@ -150,24 +150,15 @@ class MaskDecoder(nn.Module):
         # Run the transformer
         # by LBK EDIT
         try:
-            hs, src, src_list = self.transformer(src, pos_src, tokens)
+            hs, src = self.transformer(src, pos_src, tokens)
         except:
-            hs, src, src_list = self.transformer(src, self.interpolate(pos_src, *src.shape[2:]), tokens)
+            hs, src = self.transformer(src, self.interpolate(pos_src, *src.shape[2:]), tokens)
         iou_token_out = hs[:, 0, :]
         mask_tokens_out = hs[:, 1 : (1 + self.num_mask_tokens), :]
 
-        # LBK EDIT, src list transformation
-        src_list = [x.transpose(1, 2).view(b, c, h, w) for x in src_list]
-
         # Upscale mask embeddings and predict masks using the mask tokens
         src = src.transpose(1, 2).view(b, c, h, w)
-
-        # LBK EDIT, src
-        for f in self.output_upscaling:
-            src = f(src)
-            if f._get_name() == 'GELU': src_list.append(src)
-
-        upscaled_embedding = src
+        upscaled_embedding = self.output_upscaling(src)
         hyper_in_list: List[torch.Tensor] = []
         for i in range(self.num_mask_tokens):
             hyper_in_list.append(self.output_hypernetworks_mlps[i](mask_tokens_out[:, i, :]))
@@ -180,12 +171,9 @@ class MaskDecoder(nn.Module):
 
         # original code 
         # return masks, iou_pred
-
-        # LBK transformation for src_dict
-        src_dict = {f'res{i+2}': x for i, x in enumerate(src_list[::-1])}
     
         # LBK EDIT
-        return src_dict, hyper_in
+        return upscaled_embedding, hyper_in
 
 
 # Lightly adapted from

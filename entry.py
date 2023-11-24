@@ -15,7 +15,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 from utils.arguments import load_opt_command
 
 
-def init_wandb(args, job_dir, entity='weip1004', project='uni_cvpr24', job_name='tmp'):
+def init_wandb(args, job_dir, entity='uni_cvpr24', project='syslearner', job_name='tmp'):
     wandb_dir = os.path.join(job_dir, 'wandb')
     os.makedirs(wandb_dir, exist_ok=True)
     runid = None

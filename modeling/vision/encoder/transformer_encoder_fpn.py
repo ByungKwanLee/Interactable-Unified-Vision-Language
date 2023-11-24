@@ -86,22 +86,12 @@ class BasePixelDecoder(nn.Module):
                 lateral_convs.append(None)
                 output_convs.append(output_conv)
             else:
+                lateral_norm = get_norm(norm, conv_dim)
                 output_norm = get_norm(norm, conv_dim)
 
-                # Original Code
-                # lateral_norm = get_norm(norm, conv_dim)
-                # lateral_conv = Conv2d(
-                #     in_channels, conv_dim, kernel_size=1, bias=use_bias, norm=lateral_norm
-                # )
-                
-                # LBK by SAM ConvTranspose2d
-                lateral_conv = nn.Sequential(
-                    nn.ConvTranspose2d(in_channels, conv_dim, kernel_size=2, stride=2),
-                    LayerNorm2d(conv_dim),
-                    nn.GELU(),
-                    nn.ConvTranspose2d(conv_dim, conv_dim, kernel_size=2, stride=2),
-                    nn.GELU(),
-                    )
+                lateral_conv = Conv2d(
+                    in_channels, conv_dim, kernel_size=1, bias=use_bias, norm=lateral_norm
+                )
                 
                 output_conv = Conv2d(
                     conv_dim,
@@ -113,7 +103,7 @@ class BasePixelDecoder(nn.Module):
                     norm=output_norm,
                     activation=F.relu,
                 )
-                lateral_conv.apply(initialize_weight) # LBK EDIT
+                weight_init.c2_xavier_fill(lateral_conv)
                 weight_init.c2_xavier_fill(output_conv)
                 self.add_module("adapter_{}".format(idx + 1), lateral_conv)
                 self.add_module("layer_{}".format(idx + 1), output_conv)
@@ -197,33 +187,12 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
 
         self.in_features = ['res2', 'res3', 'res4', 'res5']  # starting from "res2" to "res5"
 
-        # res2/res3/res4/res5, LBK
-        self.sam_pler_res2 = nn.Conv3d(num_mask, 1, kernel_size=1)
-        self.input_proj_res2 = nn.Sequential(Conv2d(32, 512, kernel_size=1),
+        # LBK
+        self.sam_pler = nn.Conv3d(num_mask, 1, kernel_size=1)
+        self.input_proj = nn.Sequential(Conv2d(32, 512, kernel_size=1),
                                       nn.Dropout(),
                                       Conv2d(512, 512, kernel_size=1),
                                       nn.ReLU())
-
-        self.sam_pler_res3 = nn.Conv3d(num_mask, 1, kernel_size=1)
-        self.input_proj_res3 = nn.Sequential(Conv2d(64, 512, kernel_size=1),
-                                      nn.Dropout(),
-                                      Conv2d(512, 512, kernel_size=1),
-                                      nn.ReLU())
-
-        self.sam_pler_res4 = nn.Conv3d(num_mask, 1, kernel_size=1)
-        self.input_proj_res4 = nn.Sequential(Conv2d(256, 512, kernel_size=1),
-                                      nn.Dropout(),
-                                      Conv2d(512, 512, kernel_size=1),
-                                      nn.ReLU())
-
-        self.sam_pler_res5 = nn.Conv3d(num_mask, 1, kernel_size=1)
-        self.input_proj_res5 = nn.Sequential(Conv2d(256, 512, kernel_size=1),
-                                      nn.Dropout(),
-                                      Conv2d(512, 512, kernel_size=1),
-                                      nn.ReLU())
-
-        self.sam_pler_dict = {str_: getattr(self, f'sam_pler_{str_}') for str_ in self.in_features}
-        self.input_proj_dict = {str_: getattr(self, f'input_proj_{str_}') for str_ in self.in_features}
 
         # update layer
         use_bias = norm == ""
@@ -250,26 +219,22 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
         ret['num_mask'] = cfg['NUM_GRIDS_HORIZON']**2
         return ret
 
-    def forward(self, features, src_outputs_dict):
+    def forward(self, features, src_output_features):
         multi_scale_features = []
         num_cur_levels = 0
                 
         # Reverse feature maps into top-down order (from low to high resolution)
         for idx, f in enumerate(self.in_features[::-1]):
             x = features[f]
-            xx = src_outputs_dict[f]
-            sam_pler = self.sam_pler_dict[f]
-            input_proj = self.input_proj_dict[f]
             lateral_conv = self.lateral_convs[idx]
             output_conv = self.output_convs[idx]
             if lateral_conv is None:
-                y = input_proj(sam_pler(xx).squeeze(1))
-                y = F.interpolate(y, size=src_outputs_dict['res2'].shape[3:]) 
+                y = self.input_proj(self.sam_pler(src_output_features).squeeze(1))
                 y = output_conv(y)
             else:
                 cur_fpn = lateral_conv(x)
                 # Following FPN implementation, we use nearest upsampling here
-                y = cur_fpn + F.interpolate(input_proj(sam_pler(xx).squeeze(1)), size=cur_fpn.shape[2:]) + y
+                y = F.interpolate(cur_fpn, size=src_output_features.shape[3:]) + y
                 y = output_conv(y)
             if num_cur_levels < self.maskformer_num_feature_levels:
                 multi_scale_features.append(y)

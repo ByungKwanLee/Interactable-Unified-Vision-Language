@@ -52,8 +52,8 @@ class XdecoderHead(nn.Module):
             ),
         }
 
-    def forward(self, features, src_output_dict, hyper_in_features, mask=None, target_queries=None, target_vlp=None, task='seg', extra={}):
-        mask_features, multi_scale_features = self.pixel_decoder(features, src_output_dict)
+    def forward(self, features, src_output_features, hyper_in_features, mask=None, target_queries=None, target_vlp=None, task='seg', extra={}):
+        mask_features, multi_scale_features = self.pixel_decoder(features, src_output_features)
         predictions = self.predictor(hyper_in_features, multi_scale_features, mask_features, mask, target_queries, target_vlp, task, extra)
         return predictions
 

@@ -36,12 +36,58 @@
             "SOLVER.LR_MULTIPLIER.lang_encoder", "0.1", 
             "WEIGHT", "True", 
             "RESUME_FROM", 
-            "/mnt/ssd/lbk-cvpr/syslearner/run_9/default/epoch2/syslearner.pt"],
+            "/mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt"],
             // /mnt/hard/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
             // /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3_model_state_dict.pt
         }
     ]
 }
+
+
+// REF COCO
+// {
+//     // Use IntelliSense to learn about possible attributes.
+//     // Hover to view descriptions of existing attributes.
+//     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+//     "version": "0.2.0",
+//     "configurations": [
+//         {
+//             "name": "Python: Current File",
+//             "type": "python",
+//             "request": "launch",
+//             "program": "${file}",
+//             "console": "integratedTerminal",
+//             "justMyCode": false,
+//             "env": {"CUDA_VISIBLE_DEVICES": "0"},
+//             "args": ["train", "--conf_files", "configs/step1_vlp.yaml", "--overrides", "FP16", "True", "WANDB", "False", "PORT", "36000",
+//             "MODEL.DECODER.CAPTIONING.ENABLED", "True", 
+//             "MODEL.DECODER.RETRIEVAL.ENABLED", "True", 
+//             "MODEL.DECODER.GROUNDING.ENABLED", "True", 
+//             "MODEL.DECODER.CAPTIONING_WEIGHT", "8", 
+//             "MODEL.DECODER.RETRIEVAL_WEIGHT", "8", 
+//             "MODEL.DECODER.TOP_CAPTIONING_LAYERS", "3", 
+//             "MODEL.DECODER.TOP_RETRIEVAL_LAYERS", "3", 
+//             "MODEL.DECODER.TOP_GROUNDING_LAYERS", "6", 
+//             "MODEL.DECODER.GROUNDING.TEXT_WEIGHT", "2.0", 
+//             "MODEL.DECODER.GROUNDING.CLASS_WEIGHT", "0.5", 
+//             "COCO.TEST.BATCH_SIZE_TOTAL", "2", 
+//             "COCO.TRAIN.BATCH_SIZE_TOTAL", "2", 
+//             "COCO.TRAIN.BATCH_SIZE_PER_GPU", "2", 
+//             "VLP.TEST.BATCH_SIZE_TOTAL", "12", 
+//             "VLP.TRAIN.BATCH_SIZE_TOTAL", "2", 
+//             "VLP.TRAIN.BATCH_SIZE_PER_GPU", "2", 
+//             "VLP.DATALOADER.NUM_WORKERS", "32", 
+//             "ADE20K.TEST.BATCH_SIZE_TOTAL", "2", 
+//             "REF.TEST.BATCH_SIZE_TOTAL", "2", 
+//             "SOLVER.LR_MULTIPLIER.lang_encoder", "0.1", 
+//             "WEIGHT", "True", 
+//             "RESUME_FROM", 
+//             "/mnt/hard/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt"],
+//             // /mnt/hard/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
+//             // /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3_model_state_dict.pt
+//         }
+//     ]
+// }
 
 
 // REF COCO
@@ -120,10 +166,11 @@
 //             "SOLVER.LR_MULTIPLIER.lang_encoder", "0.1", 
 //             "WEIGHT", "True", 
 //             "RESUME_FROM", 
-//             "/mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3/syslearner.pt"],
+//             "/mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt"],
 
 //             // /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/llm_epoch1_model_state_dict.pt
 //             // /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
+//             // /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
             
 //         }
 //     ]
