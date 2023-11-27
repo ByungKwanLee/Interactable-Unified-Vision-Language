@@ -38,21 +38,48 @@ SAM_SIZE: 'huge' # base/large/huge
 # Syslearner
 SYSLEARNER_DIM: 512
 
-# Detectron2 training config for optimizer and lr scheduler
+
+# WarmupMultiStepLR
+# SOLVER:
+#   BASE_LR: 0.0001
+#   STEPS: [0.6, 0.8] #[0.88889, 0.96296]
+#   MAX_ITER: 1
+#   GAMMA: 0.1
+#   WARMUP_FACTOR: 1.0
+#   WARMUP_ITERS: 10
+#   WARMUP_METHOD: "linear"
+#   WEIGHT_DECAY: 0.05
+#   OPTIMIZER: "ADAMW"
+#   LR_SCHEDULER_NAME: "WarmupMultiStepLR"
+#   LR_MULTIPLIER:
+#     sam: 0.1
+#     lang_encoder: 0.1
+#   WEIGHT_DECAY_NORM: 0.0
+#   WEIGHT_DECAY_EMBED: 0.0
+#   CLIP_GRADIENTS:
+#     ENABLED: True
+#     CLIP_TYPE: "full_model"
+#     CLIP_VALUE: 5.0 # 0.01
+#     NORM_TYPE: 2.0
+#   AMP:
+#     ENABLED: True
+#   MAX_NUM_EPOCHS: 10 #50
+
+# WarmupCosineLR
 SOLVER:
-  BASE_LR: 0.0001
-  STEPS: [0.6, 0.8] #[0.88889, 0.96296]
+  BASE_LR: 0.001
+  BASE_LR_END: 0.0001
   MAX_ITER: 1
-  GAMMA: 0.1
-  WARMUP_FACTOR: 1.0
-  WARMUP_ITERS: 10
+  STEPS: [1]
+  WARMUP_FACTOR: 0.1
+  WARMUP_ITERS: 2000
   WARMUP_METHOD: "linear"
   WEIGHT_DECAY: 0.05
   OPTIMIZER: "ADAMW"
-  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
+  LR_SCHEDULER_NAME: "WarmupCosineLR"
   LR_MULTIPLIER:
-    sam: 0.1
-    lang_encoder: 0.1
+    sam: 1.0
+    lang_encoder: 1.0
   WEIGHT_DECAY_NORM: 0.0
   WEIGHT_DECAY_EMBED: 0.0
   CLIP_GRADIENTS:
@@ -63,6 +90,7 @@ SOLVER:
   AMP:
     ENABLED: True
   MAX_NUM_EPOCHS: 10 #50
+
 
 # Define Test/Trainer/Saving
 PIPELINE: XDecoderPipeline

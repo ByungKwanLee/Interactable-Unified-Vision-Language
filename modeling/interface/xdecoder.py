@@ -224,7 +224,7 @@ class XDecoder(nn.Module):
         query_embed = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1) # positional embedding [101, B, syslearner_dim]
         output = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1) # learnable feature [101, B, syslearner_dim]
         query_embed[:-1, ...] += self.sam_pler1(hyper_in_features).transpose(0, 1) 
-        output[:-1, ...] += self.sam_pler1(hyper_in_features).transpose(0, 1) 
+        output[:-1, ...] += self.sam_pler2(hyper_in_features).transpose(0, 1) 
 
         predictions_image_feat = []
         predictions_class = []
@@ -363,7 +363,7 @@ class XDecoder(nn.Module):
         # QxNxC
         query_embed_ = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1)
         query_feat = self.query_feat.weight.unsqueeze(1).repeat(1, bs, 1)   
-        query_embed_[:-1, ...] += self.sam_pler2(hyper_in_features).transpose(0, 1) 
+        query_embed_[:-1, ...] += self.sam_pler1(hyper_in_features).transpose(0, 1) 
         query_feat[:-1, ...] += self.sam_pler2(hyper_in_features).transpose(0, 1) 
         caping_lang_token = extra['start_token'].repeat(bs, 1)
         pos_embed_caping = self.pos_embed_caping.weight.unsqueeze(1).repeat(1, bs, 1)

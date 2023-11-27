@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # VLP - Stage1 (Pretrained)
-GPU_DEVICE="0,1,2,3,4,5"
+GPU_DEVICE="0,1,2,3,4,5,6,7"
 length=${#GPU_DEVICE}
 port=$(($RANDOM%10000+30000))
 n_gpu=$(((length+1)/2))
