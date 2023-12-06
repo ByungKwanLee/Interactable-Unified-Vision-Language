@@ -220,13 +220,6 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
                 last_lr = {}
                 for module_name in self.model_names:
                     last_lr[module_name] = self.lr_schedulers[module_name].get_last_lr()[0]
-                
-                if (self.opt['rank'] == 0) and self.opt['WANDB']:
-                    # log for wandb
-                    wb_loss_info = {key: obj.val for key, obj in self.train_loss.losses.items()}
-                    wandb.log(wb_loss_info) #, step=self.min_length_dataset * epoch + batch_idx
-                    wandb.log({'Learning-Rate': self.lr_schedulers['default'].get_last_lr()[0]}) # LBK-LR log
-                    wandb.log({'Epoch': epoch+1}) # LBK-LR log
 
                 loss_list = [obj.val for _, obj in self.train_loss.losses.items()]
                 total_loss = sum(loss_list) / len(loss_list)
@@ -234,6 +227,15 @@ class DefaultTrainer(UtilsTrainer, DistributedTrainer):
                 desc += f"LR[{', '.join([f'{val:.2e}' for _, val in last_lr.items()])}]|"
                 desc += f"Loss[{total_loss:.2f}]|"
                 prog_bar.set_description(desc, refresh=True)
+                
+                if (self.opt['rank'] == 0) and self.opt['WANDB']:
+                    # log for wandb
+                    wb_loss_info = {key: obj.val for key, obj in self.train_loss.losses.items()}
+                    wandb.log(wb_loss_info) #, step=self.min_length_dataset * epoch + batch_idx
+                    wandb.log({'Total-Loss': total_loss}) # LBK-Total-Loss log
+                    wandb.log({'Learning-Rate': self.lr_schedulers['default'].get_last_lr()[0]}) # LBK-LR log
+                    wandb.log({'Epoch': epoch+1}) # LBK-LR log
+                
                 if self.min_length_dataset == batch_idx + 1: break
 
                 if batch_idx in [eval_period, eval_period*2, eval_period*3]:

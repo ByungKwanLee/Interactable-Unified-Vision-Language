@@ -188,7 +188,6 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
         self.in_features = ['res2', 'res3', 'res4', 'res5']  # starting from "res2" to "res5"
 
         # LBK
-        self.sam_pler = nn.Conv3d(num_mask, 1, kernel_size=1)
         self.input_proj = nn.Sequential(Conv2d(32, 512, kernel_size=1),
                                       nn.Dropout(),
                                       Conv2d(512, 512, kernel_size=1),
@@ -229,7 +228,7 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
             lateral_conv = self.lateral_convs[idx]
             output_conv = self.output_convs[idx]
             if lateral_conv is None:
-                y = self.input_proj(self.sam_pler(src_output_features).squeeze(1))
+                y = self.input_proj(src_output_features.mean(dim=1))
                 y = output_conv(y)
             else:
                 cur_fpn = lateral_conv(x)

@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 
 # VLP - Stage1 (Pretrained)
-GPU_DEVICE="0,1,2,3,4,5,6,7"
+GPU_DEVICE="0,1,2,3"
 length=${#GPU_DEVICE}
 port=$(($RANDOM%10000+30000))
 n_gpu=$(((length+1)/2))
-image_bath=1
-lang_batch=10
+image_bath=4
 test_batch=8
 
 CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
@@ -27,15 +26,13 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             MODEL.DECODER.GROUNDING.CLASS_WEIGHT 0.5 \
             COCO.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
             COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
-            VLP.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * lang_batch)) \
-            VLP.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
             COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
             ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
             VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
-            SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
             WEIGHT True \
-            RESUME_FROM /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
+            RESUME_FROM /mnt/ssd/lbk-cvpr/syslearner/run_9/default/epoch1/syslearner.pt
+            # /mnt/ssd/lbk-cvpr/syslearner/run_91/default/epoch1
             # /mnt/ssd/lbk-cvpr/syslearner/run_9/default/epoch2/syslearner.pt
             # /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
             # /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
@@ -70,7 +67,6 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 #             COCO.TRAIN.BATCH_SIZE_TOTAL $((n_gpu * image_bath)) \
 #             COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
 #             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
-#             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
 #             WEIGHT True \
 #             RESUME_FROM /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3_model_state_dict.pt
 #             # /home/junho/lbk/sam_xdecoder/ckpt/run_5/default/epoch1_model_state_dict.pt
@@ -107,7 +103,6 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 #             INSTRUCT.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
 #             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
 #             VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
-#             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
 #             WEIGHT True \
 #             RESUME_FROM /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3_model_state_dict.pt
 #             # /home/junho/lbk/sam_xdecoder/ckpt/run_5/default/epoch1_model_state_dict.pt
@@ -144,7 +139,6 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 #             INSTRUCT.TRAIN.BATCH_SIZE_PER_GPU $lang_batch \
 #             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
 #             VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
-#             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
 #             WEIGHT True \
 #             RESUME_FROM /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3/syslearner.pt
 
@@ -179,6 +173,5 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
 #             VLP.TRAIN.BATCH_SIZE_TOTAL 8 \
 #             VLP.TRAIN.BATCH_SIZE_PER_GPU 1 \
 #             VQA.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
-#             SOLVER.LR_MULTIPLIER.lang_encoder 0.1 \
 #             WEIGHT True \
 #             RESUME_FROM /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3/syslearner.pt

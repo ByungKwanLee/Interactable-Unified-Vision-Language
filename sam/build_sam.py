@@ -106,11 +106,11 @@ def _build_sam(
     if checkpoint is not None:
         with open(checkpoint, "rb") as f:
             state_dict = torch.load(f)
-        sam.load_state_dict(state_dict)
+        msg = sam.load_state_dict(state_dict, strict=False)
     # LBK EDIT
     for name, param in sam.named_parameters():
-        # if name.startswith('mask_decoder.'):
-        #     param.requires_grad = True
-        # else:
-        param.requires_grad = True
+        if 'general_embed' in name:
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
     return sam

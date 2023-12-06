@@ -21,9 +21,9 @@ VOC:
 
 # Datasets
 DATASETS:
-  TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding", "vlp_train"] # instruction_train / instp_train / vlp_train
+  TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  TEST: ["coco_2017_val_panoptic_with_sem_seg", "refcocog_val_umd", "vlp_val", "vlp_captioning_val"] # ["pascalvoc_val_Point"]
+  TEST: ["coco_2017_val_panoptic_with_sem_seg","refcocog_val_umd"] # ["pascalvoc_val_Point"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
@@ -40,46 +40,20 @@ SYSLEARNER_DIM: 512
 
 
 # WarmupMultiStepLR
-# SOLVER:
-#   BASE_LR: 0.0001
-#   STEPS: [0.6, 0.8] #[0.88889, 0.96296]
-#   MAX_ITER: 1
-#   GAMMA: 0.1
-#   WARMUP_FACTOR: 1.0
-#   WARMUP_ITERS: 10
-#   WARMUP_METHOD: "linear"
-#   WEIGHT_DECAY: 0.05
-#   OPTIMIZER: "ADAMW"
-#   LR_SCHEDULER_NAME: "WarmupMultiStepLR"
-#   LR_MULTIPLIER:
-#     sam: 0.1
-#     lang_encoder: 0.1
-#   WEIGHT_DECAY_NORM: 0.0
-#   WEIGHT_DECAY_EMBED: 0.0
-#   CLIP_GRADIENTS:
-#     ENABLED: True
-#     CLIP_TYPE: "full_model"
-#     CLIP_VALUE: 5.0 # 0.01
-#     NORM_TYPE: 2.0
-#   AMP:
-#     ENABLED: True
-#   MAX_NUM_EPOCHS: 10 #50
-
-# WarmupCosineLR
 SOLVER:
-  BASE_LR: 0.001
-  BASE_LR_END: 0.0001
+  BASE_LR: 0.0001
+  STEPS: [0.4, 0.8] #[0.88889, 0.96296]
   MAX_ITER: 1
-  STEPS: [1]
-  WARMUP_FACTOR: 0.1
-  WARMUP_ITERS: 2000
+  GAMMA: 0.1
+  WARMUP_FACTOR: 1.0
+  WARMUP_ITERS: 10
   WARMUP_METHOD: "linear"
   WEIGHT_DECAY: 0.05
   OPTIMIZER: "ADAMW"
-  LR_SCHEDULER_NAME: "WarmupCosineLR"
+  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
   LR_MULTIPLIER:
-    sam: 1.0
-    lang_encoder: 1.0
+    sam: 0.1
+    lang_encoder: 0.1
   WEIGHT_DECAY_NORM: 0.0
   WEIGHT_DECAY_EMBED: 0.0
   CLIP_GRADIENTS:
@@ -90,6 +64,32 @@ SOLVER:
   AMP:
     ENABLED: True
   MAX_NUM_EPOCHS: 10 #50
+
+# WarmupCosineLR
+# SOLVER:
+#   BASE_LR: 0.001
+#   BASE_LR_END: 0.0001
+#   MAX_ITER: 1
+#   STEPS: [1]
+#   WARMUP_FACTOR: 0.1
+#   WARMUP_ITERS: 2000
+#   WARMUP_METHOD: "linear"
+#   WEIGHT_DECAY: 0.05
+#   OPTIMIZER: "ADAMW"
+#   LR_SCHEDULER_NAME: "WarmupCosineLR"
+#   LR_MULTIPLIER:
+#     sam: 1.0
+#     lang_encoder: 1.0
+#   WEIGHT_DECAY_NORM: 0.0
+#   WEIGHT_DECAY_EMBED: 0.0
+#   CLIP_GRADIENTS:
+#     ENABLED: True
+#     CLIP_TYPE: "full_model"
+#     CLIP_VALUE: 5.0 # 0.01
+#     NORM_TYPE: 2.0
+#   AMP:
+#     ENABLED: True
+#   MAX_NUM_EPOCHS: 10 #50
 
 
 # Define Test/Trainer/Saving
@@ -210,9 +210,9 @@ COCO:
     MIN_SIZE_TRAIN_SAMPLING: 'choice'
     MIN_SIZE_TEST: 800
     MAX_SIZE_TEST: 1333
-    IMAGE_SIZE: 256
-    MIN_SCALE: 1.0
-    MAX_SCALE: 1.0
+    IMAGE_SIZE: 1024
+    MIN_SCALE: 0.1
+    MAX_SCALE: 2.0
     DATASET_MAPPER_NAME: "coco_panoptic_lsj"
     IGNORE_VALUE: 255
     COLOR_AUG_SSD: False
@@ -245,28 +245,28 @@ COCO:
     SAMPLER_TRAIN: "TrainingSampler"
     ASPECT_RATIO_GROUPING: True
 
-VLP:
-  INPUT:
-    IMAGE_SIZE: 256
-    DATASET_MAPPER_NAME: "vlpretrain"
-    IGNORE_VALUE: 255
-    COLOR_AUG_SSD: False
-    SIZE_DIVISIBILITY: 32
-    MASK_FORMAT: "polygon"
-    FORMAT: "RGB"
-    CROP:
-      ENABLED: True
-  TRAIN:
-    BATCH_SIZE_TOTAL: 2
-    BATCH_SIZE_PER_GPU: 1
-  TEST:
-    BATCH_SIZE_TOTAL: 8
-  DATALOADER:
-    FILTER_EMPTY_ANNOTATIONS: False
-    NUM_WORKERS: 0
-    LOAD_PROPOSALS: False
-    SAMPLER_TRAIN: "TrainingSampler"
-    ASPECT_RATIO_GROUPING: True
+# VLP:
+#   INPUT:
+#     IMAGE_SIZE: 256
+#     DATASET_MAPPER_NAME: "vlpretrain"
+#     IGNORE_VALUE: 255
+#     COLOR_AUG_SSD: False
+#     SIZE_DIVISIBILITY: 32
+#     MASK_FORMAT: "polygon"
+#     FORMAT: "RGB"
+#     CROP:
+#       ENABLED: True
+#   TRAIN:
+#     BATCH_SIZE_TOTAL: 2
+#     BATCH_SIZE_PER_GPU: 1
+#   TEST:
+#     BATCH_SIZE_TOTAL: 8
+#   DATALOADER:
+#     FILTER_EMPTY_ANNOTATIONS: False
+#     NUM_WORKERS: 0
+#     LOAD_PROPOSALS: False
+#     SAMPLER_TRAIN: "TrainingSampler"
+#     ASPECT_RATIO_GROUPING: True
 
 # Instruction FT Dataset
 INSTRUCT:

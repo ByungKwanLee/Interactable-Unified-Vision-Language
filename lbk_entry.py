@@ -1,6 +1,4 @@
 from utils.arguments import load_opt_command
-import torch.multiprocessing
-torch.multiprocessing.set_sharing_strategy('file_system')
 
 def main(args=None):
     opt, _ = load_opt_command(args)

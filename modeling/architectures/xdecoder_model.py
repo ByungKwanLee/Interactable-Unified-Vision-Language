@@ -345,13 +345,13 @@ class GeneralizedXdecoder(nn.Module):
         
     # LBK SAM Input Generator
     def sam_input_generator(self, images):
-        input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
-        input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
+        # input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+        # input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
         sam_input = [
             {
                 'image': i,
-                'point_coords': input_point,
-                'point_labels': input_label,
+                # 'point_coords': input_point,
+                # 'point_labels': input_label,
             } for i in images
         ]
         return sam_input
@@ -664,6 +664,19 @@ class GeneralizedXdecoder(nn.Module):
         
         return {'loss_llm': llm_outputs.loss}
 
+    def create_pascal_label_colormap(self):
+        def bit_get(val, idx):
+            return (val >> idx) & 1
+        colormap = np.zeros((512, 3), dtype=int)
+        ind = np.arange(512, dtype=int)
+
+        for shift in reversed(list(range(8))):
+            for channel in range(3):
+                colormap[:, channel] |= bit_get(ind, channel) << shift
+            ind >>= 3
+
+        return colormap / 255
+    
     def evaluate(self, batched_inputs):
         images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
         images = (images - self.pixel_mean) / self.pixel_std
@@ -716,6 +729,12 @@ class GeneralizedXdecoder(nn.Module):
             if self.panoptic_on:
                 panoptic_r = retry_if_cuda_oom(self.panoptic_inference)(mask_cls_result, mask_pred_result)
                 processed_results[-1]["panoptic_seg"] = panoptic_r
+            
+            # LBK Visualization
+            # cmap = self.create_pascal_label_colormap()
+            # c = cmap[panoptic_r[0].cpu()]
+            # m = (mask_pred_result>0)[0].unsqueeze(2).cpu().numpy()
+            # label = cmap[batched_inputs[0]['sem_seg'].cpu()]
             
             # instance segmentation inference
             if self.instance_on:

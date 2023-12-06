@@ -102,7 +102,7 @@ class ImageEncoderViT(nn.Module):
             ),
             LayerNorm2d(out_chans),
         )
-        self.key_list = {3: 'res2', 6: 'res3', 9: 'res4'}
+        self.key_dict = {depth//4-1: 'res2', depth*2//4-1: 'res3', depth*3//4-1: 'res4'} # LBK EDIT
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         
@@ -118,7 +118,7 @@ class ImageEncoderViT(nn.Module):
         x_dict = {}
         for idx, blk in enumerate(self.blocks):
             x = blk(x)
-            if idx in self.key_list.keys(): x_dict[self.key_list[idx]] = x.permute(0, 3, 1, 2)
+            if idx in self.key_dict.keys(): x_dict[self.key_dict[idx]] = x.permute(0, 3, 1, 2) # LBK
 
         x = self.neck(x.permute(0, 3, 1, 2))
         x_dict['res5'] = x
@@ -188,6 +188,8 @@ class Block(nn.Module):
         x = self.norm1(x)
         # Window partition
         if self.window_size > 0:
+            orig_H, orig_W = x.shape[1], x.shape[2] # LBK
+            x = F.interpolate(x.permute(0,3,1,2), size=(64, 64), mode='bicubic').permute(0,2,3,1) # LBK
             H, W = x.shape[1], x.shape[2]
             x, pad_hw = window_partition(x, self.window_size)
 
@@ -195,6 +197,7 @@ class Block(nn.Module):
         # Reverse window partition
         if self.window_size > 0:
             x = window_unpartition(x, self.window_size, pad_hw, (H, W))
+            x = F.interpolate(x.permute(0,3,1,2), size=(orig_H, orig_W), mode='bicubic').permute(0,2,3,1) # LBK
 
         x = shortcut + x
         x = x + self.mlp(self.norm2(x))

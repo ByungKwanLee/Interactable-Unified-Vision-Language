@@ -59,6 +59,7 @@ class PromptEncoder(nn.Module):
             nn.Conv2d(mask_in_chans, embed_dim, kernel_size=1),
         )
         self.no_mask_embed = nn.Embedding(1, embed_dim)
+        self.general_embed = nn.Embedding(1, embed_dim) # LBK EDIT
 
     def get_dense_pe(self) -> torch.Tensor:
         """
@@ -137,6 +138,7 @@ class PromptEncoder(nn.Module):
         points: Optional[Tuple[torch.Tensor, torch.Tensor]],
         boxes: Optional[torch.Tensor],
         masks: Optional[torch.Tensor],
+        general: Optional[torch.Tensor],
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Embeds different types of prompts, returning both sparse and dense
@@ -167,6 +169,10 @@ class PromptEncoder(nn.Module):
 
         if masks is not None:
             dense_embeddings = self._embed_masks(masks)
+        elif general:
+            dense_embeddings = self.general_embed.weight.reshape(1, -1, 1, 1).expand(
+                bs, -1, self.image_embedding_size[0], self.image_embedding_size[1]
+            )
         else:
             dense_embeddings = self.no_mask_embed.weight.reshape(1, -1, 1, 1).expand(
                 bs, -1, self.image_embedding_size[0], self.image_embedding_size[1]
