@@ -131,9 +131,6 @@ def build_sam_vit_t(checkpoint=None, custom_img_size=1024):
             ),
             prompt_encoder=PromptEncoder(
             embed_dim=prompt_embed_dim,
-            # LBK EDIT (Important)
-            # image_embedding_size=(image_embedding_size, image_embedding_size),
-            # input_image_size=(image_size, image_size),
             image_embedding_size=(custom_img_size//vit_patch_size, custom_img_size//vit_patch_size),
             input_image_size=(custom_img_size, custom_img_size),
             mask_in_chans=16,
