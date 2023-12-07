@@ -12,8 +12,8 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "env": {"CUDA_VISIBLE_DEVICES": "0"},
-            "args": ["train", "--conf_files", "configs/step1_vlp.yaml", "--overrides", "FP16", "True", "WANDB", "False", "PORT", "36000",
+            "env": {"CUDA_VISIBLE_DEVICES": "1"},
+            "args": ["train", "--conf_files", "configs/step1.yaml", "--overrides", "FP16", "True", "WANDB", "False", "PORT", "36000",
             "MODEL.DECODER.CAPTIONING.ENABLED", "True", 
             "MODEL.DECODER.RETRIEVAL.ENABLED", "True", 
             "MODEL.DECODER.GROUNDING.ENABLED", "True", 
@@ -25,14 +25,14 @@
             "MODEL.DECODER.GROUNDING.TEXT_WEIGHT", "2.0", 
             "MODEL.DECODER.GROUNDING.CLASS_WEIGHT", "0.5", 
             "COCO.TEST.BATCH_SIZE_TOTAL", "2", 
-            "COCO.TRAIN.BATCH_SIZE_TOTAL", "2", 
-            "COCO.TRAIN.BATCH_SIZE_PER_GPU", "2", 
+            "COCO.TRAIN.BATCH_SIZE_TOTAL", "1", 
+            "COCO.TRAIN.BATCH_SIZE_PER_GPU", "1", 
             "ADE20K.TEST.BATCH_SIZE_TOTAL", "2", 
             "REF.TEST.BATCH_SIZE_TOTAL", "2", 
             "WEIGHT", "True", 
             "RESUME_FROM", 
-            "/mnt/ssd/lbk-cvpr/syslearner/run_1/default/epoch1/syslearner.pt"],
-            // "/mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt"
+            "/mnt/hard1/lbk-cvpr/checkpoints/xdecoder_focall_last.pt"]
+            // "/mnt/hard1/lbk-cvpr/syslearner/run_1/default/epoch1/syslearner.pt"],
             // /mnt/hard/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
             // /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3_model_state_dict.pt
         }
@@ -55,7 +55,7 @@
 //             "console": "integratedTerminal",
 //             "justMyCode": false,
 //             "env": {"CUDA_VISIBLE_DEVICES": "0"},
-//             "args": ["train", "--conf_files", "configs/step1_vlp.yaml", "--overrides", "FP16", "True", "WANDB", "False", "PORT", "36000",
+//             "args": ["train", "--conf_files", "configs/step1.yaml", "--overrides", "FP16", "True", "WANDB", "False", "PORT", "36000",
 //             "MODEL.DECODER.CAPTIONING.ENABLED", "True", 
 //             "MODEL.DECODER.RETRIEVAL.ENABLED", "True", 
 //             "MODEL.DECODER.GROUNDING.ENABLED", "True", 

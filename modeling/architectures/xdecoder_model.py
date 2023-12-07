@@ -78,7 +78,9 @@ class GeneralizedXdecoder(nn.Module):
         self.img_resolution = img_resolution
         self.num_grids_horizon = num_grids_horizon
         self.sam_size = sam_size
-        if sam_size=='base':
+        if sam_size=='tiny':
+            sam = build_sam.sam_model_registry['vit_t'](checkpoint='sam/ckpt/mobile_sam.pt', custom_img_size=self.img_resolution)
+        elif sam_size=='base':
             sam = build_sam.sam_model_registry['vit_b'](checkpoint='sam/ckpt/sam_vit_b_01ec64.pth', custom_img_size=self.img_resolution)
         elif sam_size=='large':
             sam = build_sam.sam_model_registry['vit_l'](checkpoint='sam/ckpt/sam_vit_l_0b3195.pth', custom_img_size=self.img_resolution)
@@ -193,7 +195,7 @@ class GeneralizedXdecoder(nn.Module):
         
         # generate full weight dict and remove not computed layers. 
         aux_weight_dict = {}
-        for i in range(6):
+        for i in range(9):
             for k, v in weight_dict.items():
                 if (i+1) > (top_x_layers[k.split('_')[1]] - 1):
                     continue
@@ -224,7 +226,9 @@ class GeneralizedXdecoder(nn.Module):
         phrase_prob = dec_cfg['CAPTION'].get('PHRASE_PROB', 0.5)
 
         # lbk edit
-        if cfg['SAM_SIZE'] == 'base':
+        if cfg['SAM_SIZE'] == 'tiny':
+            backbone_dim = 320
+        elif cfg['SAM_SIZE'] == 'base':
             backbone_dim = 768 
         elif cfg['SAM_SIZE'] == 'large':
             backbone_dim = 1024 

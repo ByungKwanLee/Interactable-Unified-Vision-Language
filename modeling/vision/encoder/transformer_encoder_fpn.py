@@ -49,12 +49,14 @@ class BasePixelDecoder(nn.Module):
         super().__init__()
 
         self.in_features = ['res2', 'res3', 'res4', 'res5']  # starting from "res2" to "res5"
-        if sam_size == 'base':
-            feature_channels = [768, 768, 768, 768] # LBK EDIT
+        if sam_size == 'tiny':
+            feature_channels = [160, 320, 320, 256] # LBK EDIT
+        elif sam_size == 'base':
+            feature_channels = [768, 768, 768, 256] # LBK EDIT
         elif sam_size =='large':
-            feature_channels = [1024, 1024, 1024, 1024] # LBK EDIT
+            feature_channels = [1024, 1024, 1024, 256] # LBK EDIT
         elif sam_size =='huge':
-            feature_channels = [1280, 1280, 1280, 1280] # LBK EDIT
+            feature_channels = [1280, 1280, 1280, 256] # LBK EDIT
 
         lateral_convs = []
         output_convs = []

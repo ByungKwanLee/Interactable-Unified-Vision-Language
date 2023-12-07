@@ -69,7 +69,7 @@ class XDecoder(nn.Module):
         
         # LBK EDIT
         self.num_feature_levels = 3
-        self.level_indexes = [0, 1, 2, 0, 1, 2] # LBK
+        self.level_indexes = [0, 1, 2, 0, 1, 2, 0, 1, 2] # LBK
 
         # define Transformer decoder here
         self.num_heads = nheads

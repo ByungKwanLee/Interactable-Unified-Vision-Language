@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 
 # VLP - Stage1 (Pretrained)
-GPU_DEVICE="0,1,2,3"
+GPU_DEVICE="1,2,3,4,5,6,7"
 length=${#GPU_DEVICE}
 port=$(($RANDOM%10000+30000))
 n_gpu=$(((length+1)/2))
-image_bath=4
+image_bath=1
 test_batch=8
 
-CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
-            --conf_files configs/step1_vlp.yaml \
+CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python lbk_entry.py train \
+            --conf_files configs/step1.yaml \
             --overrides \
             FP16 True \
             PORT $port \
-            WANDB True \
+            WANDB False \
             MODEL.DECODER.CAPTIONING.ENABLED True \
             MODEL.DECODER.RETRIEVAL.ENABLED True \
             MODEL.DECODER.GROUNDING.ENABLED True \
@@ -28,10 +28,9 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             COCO.TRAIN.BATCH_SIZE_PER_GPU $image_bath \
             COCO.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
             ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
-            VLP.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
             WEIGHT True \
-            RESUME_FROM /mnt/ssd/lbk-cvpr/syslearner/run_9/default/epoch1/syslearner.pt
+            RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
             # /mnt/ssd/lbk-cvpr/syslearner/run_91/default/epoch1
             # /mnt/ssd/lbk-cvpr/syslearner/run_9/default/epoch2/syslearner.pt
             # /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt

@@ -31,9 +31,9 @@ DATASETS:
 Load_LLM: false
 
 # SAM Image Resolution
-IMG_RESOLUTION: 256
+IMG_RESOLUTION: 1024
 NUM_GRIDS_HORIZON: 10
-SAM_SIZE: 'huge' # base/large/huge
+SAM_SIZE: 'tiny' # base/large/huge/tiny
 
 # Syslearner
 SYSLEARNER_DIM: 512
@@ -95,7 +95,7 @@ SOLVER:
 # Define Test/Trainer/Saving
 PIPELINE: XDecoderPipeline
 TRAINER: xdecoder
-SAVE_DIR: '/mnt/ssd/lbk-cvpr/syslearner'
+SAVE_DIR: '/mnt/hard1/lbk-cvpr/syslearner'
 base_path: "./"
 
 # Resume Logistic
