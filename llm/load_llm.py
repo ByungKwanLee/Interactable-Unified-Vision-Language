@@ -26,7 +26,7 @@ def prepare_model_for_kbit_training(model):
     return model
 
 
-def prepare_llm(bits=16, double_quant=True, quant_type='nf4', ckpt="/mnt/hard1/lbk-cvpr/checkpoints/vicuna-7b-v1.5"):
+def prepare_llm(bits=16, double_quant=True, quant_type='nf4', ckpt="/mnt/ssd/lbk-cvpr/checkpoints/vicuna-7b-v1.5"):
     
     bnb_model_from_pretrained_args = {}
     if bits in [4, 8]:

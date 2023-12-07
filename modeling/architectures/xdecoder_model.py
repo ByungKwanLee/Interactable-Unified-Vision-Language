@@ -30,6 +30,7 @@ from utils.prompt_engineering import prompt_engineering
 from utils.constants import COCO_PANOPTIC_CLASSES
 from llm.load_llm import prepare_llm
 from sam.utils.amg import build_all_layer_point_grids
+from sam import build_sam
 
 
 st = LancasterStemmer()
@@ -70,11 +71,6 @@ class GeneralizedXdecoder(nn.Module):
     ):
 
         super().__init__()
-
-        # LBK build SAM model
-        import sys
-        sys.path.append('../../sam')
-        from sam import build_sam
         self.img_resolution = img_resolution
         self.num_grids_horizon = num_grids_horizon
         self.sam_size = sam_size

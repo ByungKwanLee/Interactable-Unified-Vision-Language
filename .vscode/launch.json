@@ -12,7 +12,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "env": {"CUDA_VISIBLE_DEVICES": "1"},
+            "env": {"CUDA_VISIBLE_DEVICES": "0"},
             "args": ["train", "--conf_files", "configs/step1.yaml", "--overrides", "FP16", "True", "WANDB", "False", "PORT", "36000",
             "MODEL.DECODER.CAPTIONING.ENABLED", "True", 
             "MODEL.DECODER.RETRIEVAL.ENABLED", "True", 
@@ -31,9 +31,9 @@
             "REF.TEST.BATCH_SIZE_TOTAL", "2", 
             "WEIGHT", "True", 
             "RESUME_FROM", 
-            "/mnt/hard1/lbk-cvpr/checkpoints/xdecoder_focall_last.pt"]
-            // "/mnt/hard1/lbk-cvpr/syslearner/run_1/default/epoch1/syslearner.pt"],
-            // /mnt/hard/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
+            "/mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt"]
+            // "/mnt/ssd/lbk-cvpr/syslearner/run_1/default/epoch1/syslearner.pt"],
+            // /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
             // /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3_model_state_dict.pt
         }
     ]
@@ -78,8 +78,8 @@
 //             "SOLVER.LR_MULTIPLIER.lang_encoder", "0.1", 
 //             "WEIGHT", "True", 
 //             "RESUME_FROM", 
-//             "/mnt/hard/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt"],
-//             // /mnt/hard/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
+//             "/mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt"],
+//             // /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
 //             // /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3_model_state_dict.pt
 //         }
 //     ]

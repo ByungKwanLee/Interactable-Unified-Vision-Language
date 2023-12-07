@@ -30,7 +30,7 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python lbk_entry.py train \
             ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
             REF.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
             WEIGHT True \
-            RESUME_FROM /mnt/hard1/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
+            RESUME_FROM /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt
             # /mnt/ssd/lbk-cvpr/syslearner/run_91/default/epoch1
             # /mnt/ssd/lbk-cvpr/syslearner/run_9/default/epoch2/syslearner.pt
             # /mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt

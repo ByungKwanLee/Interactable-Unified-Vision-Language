@@ -99,10 +99,13 @@ def _build_sam(
         msg = sam.load_state_dict(state_dict, strict=False)
     # LBK EDIT
     for name, param in sam.named_parameters():
-        if 'general_embed' in name:
+        if name.startswith('image_encoder.'):
             param.requires_grad = True
         else:
-            param.requires_grad = False
+            if 'general_embed' in name:
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
     return sam
 
 
@@ -158,10 +161,13 @@ def build_sam_vit_t(checkpoint=None, custom_img_size=1024):
         msg = mobile_sam.load_state_dict(state_dict, strict=False)
     # LBK EDIT
     for name, param in mobile_sam.named_parameters():
-        if 'general_embed' in name:
+        if name.startswith('image_encoder.'):
             param.requires_grad = True
         else:
-            param.requires_grad = False
+            if 'general_embed' in name:
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
     return mobile_sam
 
 sam_model_registry = {
