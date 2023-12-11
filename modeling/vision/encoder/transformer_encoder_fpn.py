@@ -10,6 +10,8 @@ import fvcore.nn.weight_init as weight_init
 from detectron2.layers import Conv2d, get_norm
 
 from .build import register_encoder
+from .transformer_blocks import TransformerEncoder, TransformerEncoderLayer, _get_clones, _get_activation_fn
+from ...modules import PositionEmbeddingSine
 from ...utils import configurable
 
 # From https://github.com/facebookresearch/detectron2/blob/main/detectron2/layers/batch_norm.py # noqa
@@ -49,27 +51,13 @@ class BasePixelDecoder(nn.Module):
         super().__init__()
 
         self.in_features = ['res2', 'res3', 'res4', 'res5']  # starting from "res2" to "res5"
-        if sam_size == 'tiny':
-            feature_channels = [160, 320, 320, 256] # LBK EDIT
-        elif sam_size == 'base':
-            feature_channels = [768, 768, 768, 256] # LBK EDIT
-        elif sam_size =='large':
-            feature_channels = [1024, 1024, 1024, 256] # LBK EDIT
-        elif sam_size =='huge':
-            feature_channels = [1280, 1280, 1280, 256] # LBK EDIT
+        self.feature_channels = [128, 256, 512, 1024] # LBK EDIT
 
         lateral_convs = []
         output_convs = []
 
-        # LBK EDIT 
-        def initialize_weight(m):
-            if isinstance(m, nn.Conv2d):
-                torch.nn.init.xavier_uniform_(m.weight)
-                if m.bias:
-                    torch.nn.init.zeros_(m.bias)
-
         use_bias = norm == ""
-        for idx, in_channels in enumerate(feature_channels):
+        for idx, in_channels in enumerate(self.feature_channels):
             if idx == len(self.in_features) - 1:
                 output_norm = get_norm(norm, conv_dim)
                 output_conv = Conv2d(
@@ -94,7 +82,6 @@ class BasePixelDecoder(nn.Module):
                 lateral_conv = Conv2d(
                     in_channels, conv_dim, kernel_size=1, bias=use_bias, norm=lateral_norm
                 )
-                
                 output_conv = Conv2d(
                     conv_dim,
                     conv_dim,
@@ -164,7 +151,45 @@ class BasePixelDecoder(nn.Module):
         return mask_features, multi_scale_features
 
 
+class TransformerEncoderOnly(nn.Module):
+    def __init__(
+        self,
+        d_model=512,
+        nhead=8,
+        num_encoder_layers=6,
+        dim_feedforward=2048,
+        dropout=0.1,
+        activation="relu",
+        normalize_before=False,
+    ):
+        super().__init__()
 
+        encoder_layer = TransformerEncoderLayer(
+            d_model, nhead, dim_feedforward, dropout, activation, normalize_before
+        )
+        encoder_norm = nn.LayerNorm(d_model) if normalize_before else None
+        self.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)
+
+        self._reset_parameters()
+
+        self.d_model = d_model
+        self.nhead = nhead
+
+    def _reset_parameters(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
+    def forward(self, src, mask, pos_embed):
+        # flatten NxCxHxW to HWxNxC
+        bs, c, h, w = src.shape
+        src = src.flatten(2).permute(2, 0, 1)
+        pos_embed = pos_embed.flatten(2).permute(2, 0, 1)
+        if mask is not None:
+            mask = mask.flatten(1)
+
+        memory = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
+        return memory.permute(1, 2, 0).view(bs, c, h, w)
 
 # This is a modified FPN decoder with extra Transformer encoder that processes the lowest-resolution feature map.
 class TransformerEncoderPixelDecoder(BasePixelDecoder):
@@ -173,6 +198,11 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
         self,
         num_mask: int,
         sam_size: str,
+        transformer_dropout: float,
+        transformer_nheads: int,
+        transformer_dim_feedforward: int,
+        transformer_enc_layers: int,
+        transformer_pre_norm: bool,
         conv_dim: int,
         mask_dim: int,
         mask_on: int,
@@ -189,11 +219,17 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
 
         self.in_features = ['res2', 'res3', 'res4', 'res5']  # starting from "res2" to "res5"
 
-        # LBK
-        self.input_proj = nn.Sequential(Conv2d(32, 512, kernel_size=1),
-                                      nn.Dropout(),
-                                      Conv2d(512, 512, kernel_size=1),
-                                      nn.ReLU())
+        self.input_proj = Conv2d(self.feature_channels[-1], conv_dim, kernel_size=1)
+        weight_init.c2_xavier_fill(self.input_proj)
+        self.transformer = TransformerEncoderOnly(
+            d_model=conv_dim,
+            dropout=transformer_dropout,
+            nhead=transformer_nheads,
+            dim_feedforward=transformer_dim_feedforward,
+            num_encoder_layers=transformer_enc_layers,
+            normalize_before=transformer_pre_norm,
+        )
+        self.pe_layer = PositionEmbeddingSine(conv_dim // 2, normalize=True)
 
         # update layer
         use_bias = norm == ""
@@ -215,12 +251,22 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
 
     @classmethod
     def from_config(cls, cfg):
+
+        enc_cfg = cfg['MODEL']['ENCODER']
+        dec_cfg = cfg['MODEL']['DECODER']
+
         ret = super().from_config(cfg)
+        ret["transformer_dropout"] = dec_cfg['DROPOUT']
+        ret["transformer_nheads"] = dec_cfg['NHEADS']
+        ret["transformer_dim_feedforward"] = dec_cfg['DIM_FEEDFORWARD']
+        ret["transformer_enc_layers"] = enc_cfg['TRANSFORMER_ENC_LAYERS']  # a separate config
+        ret["transformer_pre_norm"] = dec_cfg['PRE_NORM']
+
         ret['mask_on'] = cfg['MODEL']['DECODER']['MASK']
-        ret['num_mask'] = cfg['NUM_GRIDS_HORIZON']**2
+        ret['num_mask'] = cfg['MASK_PROPOSAL']
         return ret
 
-    def forward(self, features, src_output_features):
+    def forward(self, features):
         multi_scale_features = []
         num_cur_levels = 0
                 
@@ -230,12 +276,14 @@ class TransformerEncoderPixelDecoder(BasePixelDecoder):
             lateral_conv = self.lateral_convs[idx]
             output_conv = self.output_convs[idx]
             if lateral_conv is None:
-                y = self.input_proj(src_output_features.mean(dim=1))
-                y = output_conv(y)
+                transformer = self.input_proj(x)
+                pos = self.pe_layer(x)
+                transformer = self.transformer(transformer, None, pos)
+                y = output_conv(transformer)
             else:
                 cur_fpn = lateral_conv(x)
                 # Following FPN implementation, we use nearest upsampling here
-                y = F.interpolate(cur_fpn, size=src_output_features.shape[3:]) + y
+                y =  cur_fpn + F.interpolate(y, size=cur_fpn.shape[-2:], mode="nearest")
                 y = output_conv(y)
             if num_cur_levels < self.maskformer_num_feature_levels:
                 multi_scale_features.append(y)

@@ -1,4 +1,5 @@
 from .transformer_encoder_fpn import *
+from .transformer_encoder_deform import *
 from .build import *
 
 def build_encoder(config, *args, **kwargs):
