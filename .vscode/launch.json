@@ -31,7 +31,7 @@
             "REF.TEST.BATCH_SIZE_TOTAL", "1", 
             "WEIGHT", "True", 
             "RESUME_FROM", 
-            "/mnt/ssd/lbk-cvpr/checkpoints/seem_samvitb_v1.pt"]
+            "/home/junho/lbk/seem_samvitb_v1.pt"]
             // "/mnt/ssd/lbk-cvpr/syslearner/run_1/default/epoch1/syslearner.pt"],
             // /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
             // /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3_model_state_dict.pt

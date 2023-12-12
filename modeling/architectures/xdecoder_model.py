@@ -329,7 +329,7 @@ class GeneralizedXdecoder(nn.Module):
 
 
     def forward_seg(self, batched_inputs):
-        images = [x["image"].to(self.device).flip(0) for x in batched_inputs]
+        images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
         images = ImageList.from_tensors(images, 32)
 
@@ -390,7 +390,7 @@ class GeneralizedXdecoder(nn.Module):
         return losses
 
     def forward_vlp(self, batched_inputs):
-        images = torch.cat([x["image"].flip(0).to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
+        images = torch.cat([x["image"].to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
         images = (images - self.pixel_mean) / self.pixel_std
                 
         targets_vlp = self.prepare_vlp_targets(batched_inputs)
@@ -439,7 +439,7 @@ class GeneralizedXdecoder(nn.Module):
         # task switch False
         self.task_switch['mask']=False
         
-        images = torch.cat([x["image"].flip(0).to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
+        images = torch.cat([x["image"].to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
         images = (images - self.pixel_mean) / self.pixel_std
 
         extra = {"token_embedding": self.sem_seg_head.predictor.lang_encoder.lang_encoder.token_embedding,
@@ -478,7 +478,7 @@ class GeneralizedXdecoder(nn.Module):
     
 
     def evaluate(self, batched_inputs):
-        images = [x["image"].to(self.device).flip(0) for x in batched_inputs]
+        images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
         
         images = ImageList.from_tensors(images, 32)

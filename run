@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 # VLP - Stage1 (Pretrained)
-GPU_DEVICE="0,1,2,3"
+GPU_DEVICE="0,1,2,3,4,5,6,7"
 length=${#GPU_DEVICE}
 port=$(($RANDOM%10000+30000))
 n_gpu=$(((length+1)/2))
-image_bath=2
+image_bath=1
 test_batch=2
 image_resol=1024
 
@@ -32,7 +32,8 @@ CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             REF.TEST.BATCH_SIZE_TOTAL $n_gpu \
             ADE20K.TEST.BATCH_SIZE_TOTAL $((n_gpu * test_batch)) \
             WEIGHT True \
-            RESUME_FROM /mnt/ssd/lbk-cvpr/checkpoints/seem_samvitb_v1.pt
+            RESUME_FROM /home/junho/lbk/seem_samvitb_v1.pt
+            # /home/junho/lbk/seem_samvitb_v1.pt
             # /mnt/ssd/lbk-cvpr/syslearner/run_2/default/epoch1/syslearner.pt
             # /mnt/ssd/lbk-cvpr/checkpoints/seem_samvitb_v1.pt
             # /mnt/ssd/lbk-cvpr/syslearner/run_91/default/epoch1
