@@ -17,7 +17,6 @@ DATASETS:
 Load_LLM: false
 
 # SAM Image Resolution
-IMG_RESOLUTION: 1024
 NUM_GRIDS_HORIZON: 10
 SAM_SIZE: 'huge' # base/large/huge
 

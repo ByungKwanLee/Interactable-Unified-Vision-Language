@@ -20,7 +20,6 @@ from .build import register_decoder
 from .modules import SelfAttentionLayer, CrossAttentionLayer, FFNLayer, MLP
 from ..utils import configurable
 from ..modules import PositionEmbeddingSine
-from .resampler import PerceiverResampler
 
 
 class XDecoder(nn.Module):
@@ -69,7 +68,7 @@ class XDecoder(nn.Module):
         
         # LBK EDIT
         self.num_feature_levels = 3
-        self.level_indexes = [0, 1, 2, 0, 1, 2] # LBK
+        self.level_indexes = [0, 1, 2, 0, 1, 2, 0, 1, 2] # LBK
 
         # define Transformer decoder here
         self.num_heads = nheads
@@ -168,7 +167,7 @@ class XDecoder(nn.Module):
         dec_cfg = cfg['MODEL']['DECODER']
 
         ret["hidden_dim"]  = ret["dim_proj"] = cfg['SYSLEARNER_DIM']
-        ret["num_queries"] = cfg['NUM_GRIDS_HORIZON']**2+1
+        ret["num_queries"] = cfg['MASK_PROPOSAL']+1
         ret["contxt_len"] = 77
 
         # Transformer parameters:
@@ -189,9 +188,9 @@ class XDecoder(nn.Module):
 
         return ret
 
-    def forward(self, hyper_in_features, x, mask_features, mask=None, target_queries=None, target_vlp=None, task='seg', extra={}):
+    def forward(self, x, mask_features, mask=None, target_queries=None, target_vlp=None, task='seg', extra={}):
         if task == 'captioning_infer':
-            return self.forward_captioning(hyper_in_features, x, mask_features, mask=mask, target_queries=target_queries, target_vlp=target_vlp, task=task, extra=extra)
+            return self.forward_captioning(x, mask_features, mask=mask, target_queries=target_queries, target_vlp=target_vlp, task=task, extra=extra)
         # x is a list of multi-scale feature
         assert len(x) == self.num_feature_levels
         src = []
@@ -329,7 +328,7 @@ class XDecoder(nn.Module):
             }
             return out
 
-    def forward_captioning(self, hyper_in_features, x, mask_features, mask = None, target_queries = None, target_vlp = None, task='seg', extra={}):
+    def forward_captioning(self, x, mask_features, mask = None, target_queries = None, target_vlp = None, task='seg', extra={}):
         # x is a list of multi-scale feature
         assert len(x) == self.num_feature_levels
         src = []

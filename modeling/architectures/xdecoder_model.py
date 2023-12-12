@@ -45,8 +45,6 @@ class GeneralizedXdecoder(nn.Module):
         syslearner_dim: int,
         sam_size:str,
         load_llm: bool,
-        img_resolution: int,
-        num_grids_horizon: int,
         sem_seg_head: nn.Module,
         criterion: nn.Module,
         losses: dict,
@@ -66,22 +64,17 @@ class GeneralizedXdecoder(nn.Module):
         test_topk_per_image: int,
         train_dataset_name: str,
         retrieval_emsemble: bool,
-        backbone_dim: int,
         dim_proj: int,
     ):
 
         super().__init__()
-        self.img_resolution = img_resolution
-        self.num_grids_horizon = num_grids_horizon
         self.sam_size = sam_size
-        if sam_size=='tiny':
-            sam = build_sam.sam_model_registry['vit_t'](checkpoint='sam/ckpt/mobile_sam.pt', custom_img_size=self.img_resolution)
-        elif sam_size=='base':
-            sam = build_sam.sam_model_registry['vit_b'](checkpoint='sam/ckpt/sam_vit_b_01ec64.pth', custom_img_size=self.img_resolution)
+        if sam_size=='base':
+            sam = build_sam.sam_model_registry['vit_b'](checkpoint='sam/ckpt/sam_vit_b_01ec64.pth')
         elif sam_size=='large':
-            sam = build_sam.sam_model_registry['vit_l'](checkpoint='sam/ckpt/sam_vit_l_0b3195.pth', custom_img_size=self.img_resolution)
+            sam = build_sam.sam_model_registry['vit_l'](checkpoint='sam/ckpt/sam_vit_l_0b3195.pth')
         elif sam_size=='huge':
-            sam = build_sam.sam_model_registry['vit_h'](checkpoint='sam/ckpt/sam_vit_h_4b8939.pth', custom_img_size=self.img_resolution)
+            sam = build_sam.sam_model_registry['vit_h'](checkpoint='sam/ckpt/sam_vit_h_4b8939.pth')
 
         # LBK build LLM
         if load_llm:
@@ -91,8 +84,7 @@ class GeneralizedXdecoder(nn.Module):
             self.img_to_lang = nn.Linear(syslearner_dim, 4096)
                 
         self.sem_seg_head = sem_seg_head
-        self.sam = sam # sam
-        self.itm_head = nn.Linear(syslearner_dim, 2) # for itm
+        self.backbone = sam.image_encoder # sam
         self.criterion = criterion
         self.losses = losses
         self.num_queries = num_queries
@@ -119,7 +111,7 @@ class GeneralizedXdecoder(nn.Module):
         self.retrieval_emsemble = retrieval_emsemble
         # backbone itc loss
         if task_switch['retrieval'] and retrieval_emsemble:
-            self.backbone_proj = nn.Parameter(torch.empty(256, dim_proj))
+            self.backbone_proj = nn.Parameter(torch.empty(768, dim_proj))
             trunc_normal_(self.backbone_proj, std=.02)
 
         if not self.semantic_on:
@@ -221,26 +213,14 @@ class GeneralizedXdecoder(nn.Module):
         train_dataset_name = cfg['DATASETS']['TRAIN'][0] # HACK for only one training set.
         phrase_prob = dec_cfg['CAPTION'].get('PHRASE_PROB', 0.5)
 
-        # lbk edit
-        if cfg['SAM_SIZE'] == 'tiny':
-            backbone_dim = 320
-        elif cfg['SAM_SIZE'] == 'base':
-            backbone_dim = 768 
-        elif cfg['SAM_SIZE'] == 'large':
-            backbone_dim = 1024 
-        elif cfg['SAM_SIZE'] == 'huge':
-            backbone_dim = 1280 
-
         return {
             "syslearner_dim": cfg['SYSLEARNER_DIM'],
             "sam_size": cfg['SAM_SIZE'],
             "load_llm": cfg['Load_LLM'],
-            "img_resolution": cfg['IMG_RESOLUTION'],
-            "num_grids_horizon": cfg['NUM_GRIDS_HORIZON'],
             "sem_seg_head": sem_seg_head,
             "criterion": criterion,
             "losses": losses,
-            "num_queries": cfg['NUM_GRIDS_HORIZON']**2+1,
+            "num_queries": cfg['MASK_PROPOSAL']+1,
             "object_mask_threshold": dec_cfg['TEST']['OBJECT_MASK_THRESHOLD'],
             "overlap_threshold": dec_cfg['TEST']['OVERLAP_THRESHOLD'],
             "metadata": MetadataCatalog.get(cfg['DATASETS']['TRAIN'][0]),
@@ -260,7 +240,6 @@ class GeneralizedXdecoder(nn.Module):
             "test_topk_per_image": cfg['COCO']['TEST']['DETECTIONS_PER_IMAGE'],
             "train_dataset_name": train_dataset_name,
             "retrieval_emsemble": dec_cfg['RETRIEVAL']['ENSEMBLE'],
-            "backbone_dim": backbone_dim,
             "dim_proj": cfg['SYSLEARNER_DIM'],
         }
 
@@ -323,15 +302,8 @@ class GeneralizedXdecoder(nn.Module):
                     losses.pop(k)
             return losses
         else:
-            self.sam.eval()
-            if mode == 'retrieval':
-                results = self.evaluate_retrieval(batched_inputs)
-            elif mode == 'captioning':
-                results = self.evaluate_captioning(batched_inputs)
-            elif mode == 'llm_captioning':
+            if mode == 'llm_captioning':
                 results = self.evaluate_llm_captioning(batched_inputs)
-            elif mode == 'classification':
-                results = self.evaluate_classification(batched_inputs)
             elif mode == 'grounding_refcoco':
                 results = self.evaluate_grounding(batched_inputs)
             elif mode == 'interactive':
@@ -340,40 +312,42 @@ class GeneralizedXdecoder(nn.Module):
                 results = self.evaluate_vqa(batched_inputs)
             else:
                 results = self.evaluate(batched_inputs)
-            self.sam.train()
             return results
         
     # LBK SAM Input Generator
-    def sam_input_generator(self, images):
-        # input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
-        # input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
-        sam_input = [
-            {
-                'image': i,
-                # 'point_coords': input_point,
-                # 'point_labels': input_label,
-            } for i in images
-        ]
-        return sam_input
+    # def sam_input_generator(self, images):
+    #     # input_point = torch.as_tensor(build_all_layer_point_grids(self.num_grids_horizon, 0, 1)[0] * images.shape[2], dtype=torch.int64).cuda()
+    #     # input_label = torch.tensor([1 for _ in range(input_point.shape[0])]).cuda()
+    #     sam_input = [
+    #         {
+    #             'image': i,
+    #             # 'point_coords': input_point,
+    #             # 'point_labels': input_label,
+    #         } for i in images
+    #     ]
+    #     return sam_input
 
 
     def forward_seg(self, batched_inputs):
-        images = torch.cat([x["image"].flip(0).to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
+        images = [x["image"].to(self.device).flip(0) for x in batched_inputs]
+        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+        images = ImageList.from_tensors(images, 32)
 
         self.sem_seg_head.predictor.lang_encoder.get_text_embeddings(self.train_class_names, is_eval=False)
 
         extra = {}
-        targets = self.prepare_targets(batched_inputs, images)
-
-        # input bounding box is checked to be correct.
         # mask classification target
-        if ("instances" in batched_inputs[0]) and self.task_switch['grounding']:
-            grounding_tokens = [x['grounding_query_embs'] for x in targets] # need to pad for more than one grounding token
-            grounding_tokens = nn.utils.rnn.pad_sequence(grounding_tokens)
-            extra['grounding_tokens'] = grounding_tokens
-        
-        outputs = self.sem_seg_head(*self.sam(self.sam_input_generator(images)), extra=extra)
+        if "instances" in batched_inputs[0]:
+            # input bounding box is checked to be correct.
+            targets = self.prepare_targets(batched_inputs, images)
+
+            if self.task_switch['grounding']:
+                grounding_tokens = [x['grounding_query_embs'] for x in targets] # need to pad for more than one grounding token
+                grounding_tokens = nn.utils.rnn.pad_sequence(grounding_tokens)
+                extra['grounding_tokens'] = grounding_tokens
+
+        features = self.backbone(images.tensor)
+        outputs = self.sem_seg_head(features, extra=extra)
 
         _outputs = {}
         for key, value in outputs.items():
@@ -415,181 +389,6 @@ class GeneralizedXdecoder(nn.Module):
         del _outputs
         return losses
 
-    def forward_vlp_new(self, batched_inputs):
-        images = torch.cat([x["image"].flip(0).to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
-        
-        targets_vlp = self.prepare_vlp_targets(batched_inputs)
-        
-        extra = {"token_embedding": self.sem_seg_head.predictor.lang_encoder.lang_encoder.token_embedding,
-                 "lang_encoder": self.sem_seg_head.predictor.lang_encoder,
-                 "training": self.training}
-
-        # LBK SAM propagation
-        hier_embeddings_dict, src_output_features, hyper_in_features = self.sam(self.sam_input_generator(images))
-        outputs = self.sem_seg_head(hier_embeddings_dict, src_output_features, hyper_in_features, target_queries=None, target_vlp=targets_vlp, task='vlp', extra=extra)
-        
-        
-        for key, value in outputs.items():
-            if key == 'pred_captionings':
-                outputs[key] = value
-            elif key == 'pred_captions':
-                # outputs[key] = value[:,-1:]
-                outputs[key] = value
-            elif key == 'aux_outputs':
-                outputs[key] = []
-                for i in range(len(value)):
-                    outputs[key] += [{}]
-                    for _key, _value in value[i].items():
-                        if _key == 'pred_captions':
-                            # outputs[key][i][_key] = _value[:,-1:]
-                            outputs[key][i][_key] = _value
-                        elif _key == 'pred_captionings':
-                            outputs[key][i][_key] = _value
-        
-
-        class GatherLayer(torch.autograd.Function):
-            """
-            Gather tensors from all workers with support for backward propagation:
-            This implementation does not cut the gradients as torch.distributed.all_gather does.
-            """
-
-            @staticmethod
-            def forward(ctx, x):
-                output = [torch.zeros_like(x) for _ in range(torch.distributed.get_world_size())]
-                torch.distributed.all_gather(output, x)
-                return tuple(output)
-
-            @staticmethod
-            def backward(ctx, *grads):
-                all_gradients = torch.stack(grads)
-                torch.distributed.all_reduce(all_gradients)
-                return all_gradients[torch.distributed.get_rank()]
-
-
-        @torch.no_grad()
-        def concat_all_gather(tensor):
-            """
-            Performs all_gather operation on the provided tensors.
-            *** Warning ***: torch.distributed.all_gather has no gradient.
-            """
-            tensors_gather = [torch.ones_like(tensor)
-                for _ in range(torch.distributed.get_world_size())]
-            torch.distributed.all_gather(tensors_gather, tensor, async_op=False)
-
-            output = torch.cat(tensors_gather, dim=0)
-            return output     
-        
-        
-        def all_gather_with_grad(tensors):
-            """
-            Performs all_gather operation on the provided tensors.
-            Graph remains connected for backward grad computation.
-            """
-            # Queue the gathered tensors
-            world_size = torch.distributed.get_world_size()
-            # There is no need for reduction in the single-proc case
-            if world_size == 1:
-                return tensors
-
-            tensor_all = GatherLayer.apply(tensors)
-
-            return torch.cat(tensor_all, dim=0)
-                
-        
-        ###============== Image-text Matching ===================###
-        
-        v_emb = outputs['pred_captions'][:,-1]
-        t_emb = torch.cat([x['caption_proj'] for x in targets_vlp], dim=0)
-        
-        # image_embeds = outputs['pred_captions'][:,:-1]
-        
-        idx = torch.cat([x['image_id'] for x in targets_vlp], dim=0).view(-1,1)
-        idxs = concat_all_gather(idx)
-        
-        # check: normalize
-        image_feat = F.normalize(v_emb, dim=-1)
-        text_feat = F.normalize(t_emb, dim=-1)
-        
-        # compute similarity
-        with torch.no_grad():
-            mask = torch.eq(idx, idxs.t())
-            image_feat_world = concat_all_gather(image_feat)
-            text_feat_world = concat_all_gather(text_feat)
-            # image_feat_world = image_feat
-            # text_feat_world = text_feat
-            
-            sim_i2t = image_feat @ text_feat_world.t() / 0.0174 
-            sim_t2i = text_feat @ image_feat_world.t() / 0.0174 
-
-            weights_i2t = F.softmax(sim_i2t,dim=1)
-            weights_i2t.masked_fill_(mask, 0)            
-
-            weights_t2i = F.softmax(sim_t2i,dim=1)
-            weights_t2i.masked_fill_(mask, 0)     
-        
-        
-        
-        # image_embeds_world = all_gather_with_grad(image_embeds)
-        # image_embeds_world = image_embeds
-        
-        
-        # select a negative image (from all ranks) for each text
-        # image_embeds_neg = []    
-        # for b in range(images.shape[0]):
-        #     neg_idx = torch.multinomial(weights_t2i[b], 1).item()
-        #     image_embeds_neg.append(image_embeds_world[neg_idx])
-        # image_embeds_neg = torch.stack(image_embeds_neg,dim=0)   
-
-
-        # select a negative text (from all ranks) for each image
-        image_id_world = concat_all_gather(torch.cat([x['image_id'] for x in targets_vlp], dim=0))
-        caption_tokens_world = concat_all_gather(torch.cat([x['caption_tokens'] for x in targets_vlp], dim=0))
-        caption_proj_world = concat_all_gather(torch.cat([x['caption_proj'] for x in targets_vlp], dim=0))
-        caption_tokenids_world = concat_all_gather(torch.cat([x['caption_tokenids'] for x in targets_vlp], dim=0))
-        caption_mask_world = concat_all_gather(torch.cat([x['caption_mask'] for x in targets_vlp], dim=0))
-        # image_id_world = torch.cat([x['image_id'] for x in targets_vlp], dim=0)
-        # caption_tokens_world = torch.cat([x['caption_tokens'] for x in targets_vlp], dim=0)
-        # caption_proj_world = torch.cat([x['caption_proj'] for x in targets_vlp], dim=0)
-        # caption_tokenids_world = torch.cat([x['caption_tokenids'] for x in targets_vlp], dim=0)
-        # caption_mask_world = torch.cat([x['caption_mask'] for x in targets_vlp], dim=0)
-                
-        image_id = []
-        caption_tokens = []
-        caption_proj = []
-        caption_tokenids = []
-        caption_mask = []
-        for b in range(images.shape[0]):
-            neg_idx = torch.multinomial(weights_i2t[b], 1).item()
-            image_id.append(image_id_world[neg_idx].unsqueeze(0))
-            caption_tokens.append(caption_tokens_world[neg_idx].unsqueeze(0))
-            caption_proj.append(caption_proj_world[neg_idx].unsqueeze(0))
-            caption_tokenids.append(caption_tokenids_world[neg_idx].unsqueeze(0))
-            caption_mask.append(caption_mask_world[neg_idx].unsqueeze(0))
-
-        shuffled_targets_vlp = [{'image_id': a, 'caption_tokens': b, 'caption_proj': c, 'caption_tokenids': d, 'caption_mask': e}
-                               for a, b, c, d, e in  zip(image_id, caption_tokens, caption_proj, caption_tokenids, caption_mask)]
-        shuffled_outputs = self.sem_seg_head(src_output_features, hyper_in_features, target_queries=None, target_vlp=shuffled_targets_vlp, task='vlp', extra=extra) 
-                
-        vl_embeddings = torch.cat([outputs['pred_captionings'][:,-1,:], shuffled_outputs['pred_captionings'][:,-1,:]],dim=0)
-        vl_output = self.itm_head(vl_embeddings)   
-        
-        self.criterion.losses = self.losses['vlp'] # seg criterion losses
-        losses = self.criterion.forward_vlp(outputs, vl_output, targets_vlp, extra)
-        del outputs
-
-        if self.task_switch['retrieval'] and self.retrieval_emsemble:
-            # compute backbone vlp.
-            v_emb = hier_embeddings_dict['res5']
-            bs,nc,_,_ = v_emb.shape
-            v_emb = v_emb.reshape(bs,nc,-1)
-            v_emb = F.adaptive_avg_pool1d(v_emb, 1).reshape(bs,nc) @ self.backbone_proj
-            t_emb = torch.cat([x['caption_proj'] for x in targets_vlp], dim=0)
-            loss_contrast = image_text_contrastive_loss_queue(v_emb, t_emb, self.sem_seg_head.predictor.lang_encoder, None)
-            losses['loss_retrieval_backbone_0'] = loss_contrast
-        return losses
-
-
     def forward_vlp(self, batched_inputs):
         images = torch.cat([x["image"].flip(0).to(self.device).unsqueeze(0) for x in batched_inputs], dim=0)
         images = (images - self.pixel_mean) / self.pixel_std
@@ -601,7 +400,7 @@ class GeneralizedXdecoder(nn.Module):
                  "training": self.training}
 
         # LBK SAM propagation
-        hier_embeddings_dict, src_output_features, hyper_in_features = self.sam(self.sam_input_generator(images))
+        hier_embeddings_dict, src_output_features, hyper_in_features = self.backbone(self.sam_input_generator(images))
         outputs = self.sem_seg_head(hier_embeddings_dict, src_output_features, hyper_in_features, target_queries=None, target_vlp=targets_vlp, task='vlp', extra=extra)
 
         for key, value in outputs.items():
@@ -648,7 +447,7 @@ class GeneralizedXdecoder(nn.Module):
                  "training": self.training}
 
        # LBK SAM propagation
-        outputs = self.sem_seg_head(*self.sam(self.sam_input_generator(images)), target_queries=None, target_vlp=None, task='llm', extra=extra)
+        outputs = self.sem_seg_head(*self.backbone(self.sam_input_generator(images)), target_queries=None, target_vlp=None, task='llm', extra=extra)
         
         targets_llm = self.prepare_llm_targets(batched_inputs)
         llm_outputs = self.llm(
@@ -677,52 +476,49 @@ class GeneralizedXdecoder(nn.Module):
 
         return colormap / 255
     
-    def evaluate(self, batched_inputs):
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
 
-        targets = targets_grounding = queries_grounding = None
+    def evaluate(self, batched_inputs):
+        images = [x["image"].to(self.device).flip(0) for x in batched_inputs]
+        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
         
-        # LBK SAM propagation
-        outputs = self.sem_seg_head(*self.sam(self.sam_input_generator(images)), target_queries=queries_grounding)
+        images = ImageList.from_tensors(images, 32)
+        targets = targets_grounding = queries_grounding = None
+        outputs = self.sem_seg_head(self.backbone(images.tensor), target_queries=queries_grounding)
 
         mask_cls_results = outputs["pred_logits"]
         mask_pred_results = outputs["pred_masks"]
         box_pred_results = outputs["pred_boxes"] if self.task_switch['bbox'] else [None for i in range(len(mask_pred_results))]
-        caption_pred_results = outputs["pred_captions"] if self.task_switch['caption'] else [None for i in range(len(mask_pred_results))]
 
         # upsample masks
         mask_pred_results = F.interpolate(
             mask_pred_results,
-            size=images.shape[2:],
-            mode="bicubic",
+            size=(images.tensor.shape[-2], images.tensor.shape[-1]),
+            mode="bilinear",
             align_corners=False,
-            antialias=True
         )
 
         input_size = mask_pred_results.shape[-2:]
-        keep_sem_bgd = self.metadata.keep_sem_bgd if hasattr(self.metadata, 'keep_sem_bgd') else False
         del outputs
 
         processed_results = []
-        for mask_cls_result, mask_pred_result, box_pred_result, caption_pred_result, input_per_image in zip(
-            mask_cls_results, mask_pred_results, box_pred_results, caption_pred_results, batched_inputs
+        for mask_cls_result, mask_pred_result, box_pred_result, input_per_image, image_size in zip(
+            mask_cls_results, mask_pred_results, box_pred_results, batched_inputs, images.image_sizes
         ):
-            height = input_per_image.get("height", images.shape[2])
-            width = input_per_image.get("width", images.shape[3])
+            height = input_per_image.get("height", image_size[0])
+            width = input_per_image.get("width", image_size[1])
             processed_results.append({})
 
             if self.sem_seg_postprocess_before_inference:
                 mask_pred_result = retry_if_cuda_oom(sem_seg_postprocess)(
-                    mask_pred_result, images.shape[2:], height, width
+                    mask_pred_result, image_size, height, width
                 )
                 mask_cls_result = mask_cls_result.to(mask_pred_result)
 
             # semantic segmentation inference
             if self.semantic_on:
-                r = retry_if_cuda_oom(self.semantic_inference)(mask_cls_result, mask_pred_result, keep_sem_bgd)
+                r = retry_if_cuda_oom(self.semantic_inference)(mask_cls_result, mask_pred_result)
                 if not self.sem_seg_postprocess_before_inference:
-                    r = retry_if_cuda_oom(sem_seg_postprocess)(r, images.shape[2:], height, width)
+                    r = retry_if_cuda_oom(sem_seg_postprocess)(r, image_size, height, width)
                 processed_results[-1]["sem_seg"] = r
 
             # panoptic segmentation inference
@@ -733,98 +529,24 @@ class GeneralizedXdecoder(nn.Module):
             # LBK Visualization
             # cmap = self.create_pascal_label_colormap()
             # c = cmap[panoptic_r[0].cpu()]
+            # img = input_per_image['image'].flip(0).permute(1,2,0).cpu().numpy()
             # m = (mask_pred_result>0)[0].unsqueeze(2).cpu().numpy()
             # label = cmap[batched_inputs[0]['sem_seg'].cpu()]
-            
+
             # instance segmentation inference
             if self.instance_on:
                 if self.task_switch['bbox']:
-                    box_pred_result = bbox_postprocess(box_pred_result, input_size, images.shape[2:], height, width)
+                    box_pred_result = bbox_postprocess(box_pred_result, input_size, image_size, height, width)
                 instance_r = retry_if_cuda_oom(self.instance_inference)(mask_cls_result, mask_pred_result, box_pred_result)
                 processed_results[-1]["instances"] = instance_r
-            if self.task_switch['caption']:
-                processed_results[-1]["captions"] = caption_pred_result
-                processed_results[-1]["masks"] = mask_pred_result
 
-        return processed_results
-
-    def evaluate_retrieval(self, batched_inputs):
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
-
-        targets = targets_grounding = queries_grounding = None
-        
-        # LBK SAM propagation
-        hier_embeddings_dict, src_output_features, hyper_in_features = self.sam(self.sam_input_generator(images))
-        outputs = self.sem_seg_head(hier_embeddings_dict, src_output_features, hyper_in_features, target_queries=queries_grounding)
-        v_emb_it = outputs['pred_captions'][:,-1]
-
-        # compute backbone score
-        if self.task_switch['retrieval'] and self.retrieval_emsemble:
-            _v_emb_it = hier_embeddings_dict['res5']
-            bs,nc,_,_ = _v_emb_it.shape
-            _v_emb_it = _v_emb_it.reshape(bs,nc,-1)
-            _v_emb_it = F.adaptive_avg_pool1d(_v_emb_it, 1).reshape(bs,nc) @ self.backbone_proj
-
-        processed_results = []
-        for idx, batch_data in enumerate(batched_inputs):
-            caption_ids = []
-            t_emb_its = []
-            processed_results.append({})
-            for caption in batch_data['captions']:
-                lang_results = self.sem_seg_head.predictor.lang_encoder.get_text_token_embeddings(caption)
-                t_emb_it = lang_results['class_emb']
-                caption_ids.append(batch_data['image_id'])
-                t_emb_its.append(t_emb_it)
-
-            t_emb_it = torch.cat(t_emb_its, dim=0)
-
-            image_embeds = [v_emb_it[idx].unsqueeze(0)]
-            if self.task_switch['retrieval'] and self.retrieval_emsemble:
-                image_embeds += [_v_emb_it[idx].unsqueeze(0)]
-            caption_results = {
-                    'image_embeds': image_embeds,
-                    'text_embeds': t_emb_it,
-                    'caption_ids': caption_ids,
-                    'image_ids': batch_data['image_id'],
-                }
-            processed_results[-1]["caption"] = caption_results            
-
-        del hier_embeddings_dict
-        return processed_results
-
-    def evaluate_captioning(self, batched_inputs):
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
-        
-        if not hasattr(self, 'start_token'):
-            self.start_token = torch.tensor([[49406]*77], device=self.device)
-        
-        targets = targets_grounding = queries_grounding = None
-
-        captioning_mask = None
-        if 'captioning_mask' in batched_inputs[-1]:
-            captioning_mask = torch.cat([x['captioning_mask'] for x in batched_inputs])
-
-
-        # LBK SAM propagation
-        outputs = self.sem_seg_head(*self.sam(self.sam_input_generator(images)), 
-                                    target_queries=queries_grounding, task='captioning_infer', extra={'start_token': self.start_token, 'captioning_mask': captioning_mask})
-
-
-
-        processed_results = []
-        for idx, batch_data in enumerate(batched_inputs):
-            processed_results.append({})
-            processed_results[-1]["captioning_token"] = outputs['pred_captionings'][idx]
-            processed_results[-1]["captioning_text"] = outputs['pred_texts'][idx].split('.')[0]
-            processed_results[-1]["image_id"] = batched_inputs[idx]['image_id']
-            
         return processed_results
     
+    
     def evaluate_llm_captioning(self, batched_inputs):
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
+        images = [x["image"].to(self.device) for x in batched_inputs]
+        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+        images = ImageList.from_tensors(images, 32)
 
         extra = {"token_embedding": self.sem_seg_head.predictor.lang_encoder.lang_encoder.token_embedding,
                  "lang_encoder": self.sem_seg_head.predictor.lang_encoder,
@@ -841,7 +563,7 @@ class GeneralizedXdecoder(nn.Module):
 
 
         # LBK SAM propagation
-        outputs = self.sem_seg_head(*self.sam(self.sam_input_generator(images)), target_queries=queries_grounding, task='llm', extra=extra)
+        outputs = self.sem_seg_head(*self.backbone(self.sam_input_generator(images)), target_queries=queries_grounding, task='llm', extra=extra)
 
         processed_results = []
         for idx, batch_data in enumerate(batched_inputs):
@@ -868,15 +590,16 @@ class GeneralizedXdecoder(nn.Module):
         return processed_results
     
     def evaluate_vqa(self, batched_inputs):
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
+        images = [x["image"].to(self.device) for x in batched_inputs]
+        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+        images = ImageList.from_tensors(images, 32)
 
         extra = {"token_embedding": self.sem_seg_head.predictor.lang_encoder.lang_encoder.token_embedding,
                  "lang_encoder": self.sem_seg_head.predictor.lang_encoder,
                  "training": self.training}
         
         # LBK SAM propagation
-        outputs = self.sem_seg_head(*self.sam(self.sam_input_generator(images)), target_queries=None, task='vqa', target_vlp=None, extra=extra)
+        outputs = self.sem_seg_head(*self.backbone(self.sam_input_generator(images)), target_queries=None, task='vqa', target_vlp=None, extra=extra)
 
         
         processed_results = []
@@ -905,28 +628,14 @@ class GeneralizedXdecoder(nn.Module):
                                     "text": llm_outputs})
         return processed_results
 
-    def evaluate_classification(self, batched_inputs):
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
-                
-        targets = targets_grounding = queries_grounding = None
-
-        # LBK SAM propagation
-        outputs = self.sem_seg_head(*self.sam(self.sam_input_generator(images)), target_queries=queries_grounding)
-        processed_results = []
-        for idx, batch_data in enumerate(batched_inputs):
-            processed_results.append({})
-            processed_results[-1]["pred_class"] = outputs['pred_logits'][idx,-1]
-        return processed_results
 
     def evaluate_grounding(self, batched_inputs):
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
-        
-        # LBK SAM propagation
-        hier_embeddings_dict, src_output_features, hyper_in_features = self.sam(self.sam_input_generator(images))
-
+        images = [x["image"].to(self.device) for x in batched_inputs]
+        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+        images = ImageList.from_tensors(images, 32)
+        features = self.backbone(images.tensor)
         extra = {}
+
         # comment for multi object inference.
         mask_pred_results = []
         for idx, batch_per_image in enumerate(batched_inputs):
@@ -939,13 +648,10 @@ class GeneralizedXdecoder(nn.Module):
             query_emb = token_emb[tokens['attention_mask'].bool()]
             extra['grounding_tokens'] = query_emb[:,None]
 
-            outputs = self.sem_seg_head({k: v[idx].unsqueeze(0) for k, v in hier_embeddings_dict.items()},
-                                        src_output_features[idx].unsqueeze(0), 
-                                        hyper_in_features[idx].unsqueeze(0),
-                                       extra=extra, task='grounding_eval')
+            outputs = self.sem_seg_head(features, extra=extra, task='grounding_eval')
 
-            pred_gmasks = outputs['pred_masks'][0, self.num_queries:2*self.num_queries-1]
-            v_emb = outputs['pred_captions'][0, self.num_queries:2*self.num_queries-1]
+            pred_gmasks = outputs['pred_masks'][idx,self.num_queries:2*self.num_queries-1]
+            v_emb = outputs['pred_captions'][idx,self.num_queries:2*self.num_queries-1]
             t_emb = gtext['class_emb']
 
             t_emb = t_emb / (t_emb.norm(dim=-1, keepdim=True) + 1e-7)
@@ -961,29 +667,24 @@ class GeneralizedXdecoder(nn.Module):
             # upsample masks
             mask_pred_results[i] = F.interpolate(
                 mask_pred_results[i][None,],
-                size=images.shape[2:],
+                size=(images.tensor.shape[-2], images.tensor.shape[-1]),
                 mode="bicubic",
                 align_corners=False,
                 antialias=True
             )[0]
 
         processed_results = []
-        for mask_pred_result, input_per_image in zip(
-            mask_pred_results, batched_inputs
+        for mask_pred_result, input_per_image, image_size in zip(
+            mask_pred_results, batched_inputs, images.image_sizes
         ):
-            height = input_per_image.get("height")
-            width = input_per_image.get("width")
+            height = input_per_image.get("height", image_size[0])
+            width = input_per_image.get("width", image_size[1])
             processed_results.append({})
 
             mask_pred_result = retry_if_cuda_oom(sem_seg_postprocess)(
-                mask_pred_result, images.shape[2:], height, width
+                mask_pred_result, image_size, height, width
             )
             processed_results[-1]['grounding_mask'] = mask_pred_result
-
-            # compute bbox
-            # bbox = BitMasks(mask_pred_result > 0).get_bounding_boxes()
-            # bbox = BoxMode.convert(bbox.tensor, BoxMode.XYXY_ABS, BoxMode.XYWH_ABS)
-            # processed_results[-1]['grounding_box'] = bbox
 
         return processed_results
 
@@ -995,11 +696,12 @@ class GeneralizedXdecoder(nn.Module):
         assert type in ['point', 'circle', 'scribble', 'polygon', 'box'], "only support point, circle, scribble, polygon, box"
 
         # getting image 
-        images = torch.cat([F.interpolate(x["image"].flip(0).to(self.device).unsqueeze(0), size=(self.img_resolution, self.img_resolution)) for x in batched_inputs], dim=0)
-        images = (images - self.pixel_mean) / self.pixel_std
+        images = [x["image"].to(self.device) for x in batched_inputs]
+        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+        images = ImageList.from_tensors(images, 32)
 
         # LBK SAM propagation - (1)
-        image_embeddings, hier_embeddings_dict = self.sam.forward_image_embedding(images)
+        image_embeddings, hier_embeddings_dict = self.backbone.forward_image_embedding(images)
         labels = F.interpolate(batched_inputs[0]['spatial_query']['gt_masks'].unsqueeze(0).float(), size=images.shape[2:]).squeeze(0)
         labels = labels == 1 # int2bool
     
@@ -1036,7 +738,7 @@ class GeneralizedXdecoder(nn.Module):
                 sam_input = [{'point_coords': sam_point_coords, 'point_labels': sam_point_labels}]
 
                 # LBK SAM propagation - (2)
-                src_output_features, hyper_in_list = self.sam.decode_from_embedding(image_embeddings, sam_input)
+                src_output_features, hyper_in_list = self.backbone.decode_from_embedding(image_embeddings, sam_input)
                 outputs = self.sem_seg_head(hier_embeddings_dict, src_output_features, hyper_in_list, target_queries=None)
 
                 # upsample masks
@@ -1078,7 +780,7 @@ class GeneralizedXdecoder(nn.Module):
             sam_input = [{'boxes': sam_box_coords}]
 
             # LBK SAM propagation - (2)
-            src_output_features, hyper_in_features = self.sam.decode_from_embedding(image_embeddings, sam_input)
+            src_output_features, hyper_in_features = self.backbone.decode_from_embedding(image_embeddings, sam_input)
             outputs = self.sem_seg_head(hier_embeddings_dict, src_output_features, hyper_in_features, target_queries=None)
 
             # upsample masks
@@ -1119,7 +821,7 @@ class GeneralizedXdecoder(nn.Module):
             sam_input = [{'point_coords': sam_point_coords, 'point_labels': sam_point_labels}]
 
             # LBK SAM propagation - (2)
-            src_output_features, hyper_in_features = self.sam.decode_from_embedding(image_embeddings, sam_input)
+            src_output_features, hyper_in_features = self.backbone.decode_from_embedding(image_embeddings, sam_input)
             outputs = self.sem_seg_head(hier_embeddings_dict, src_output_features, hyper_in_features, hyper_in_list, target_queries=None)
 
             # upsample masks
@@ -1240,7 +942,7 @@ class GeneralizedXdecoder(nn.Module):
 
     
     def prepare_targets(self, batched_inputs, images):
-        h_pad, w_pad = images.shape[-2:]
+        h_pad, w_pad = images.tensor.shape[-2:]
         new_targets = []
         for idx, batch_per_image in enumerate(batched_inputs):
             targets_per_image = batch_per_image["instances"].to(self.device)

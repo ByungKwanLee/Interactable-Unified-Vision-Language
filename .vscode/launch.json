@@ -24,14 +24,14 @@
             "MODEL.DECODER.TOP_GROUNDING_LAYERS", "6", 
             "MODEL.DECODER.GROUNDING.TEXT_WEIGHT", "2.0", 
             "MODEL.DECODER.GROUNDING.CLASS_WEIGHT", "0.5", 
-            "COCO.TEST.BATCH_SIZE_TOTAL", "2", 
+            "COCO.TEST.BATCH_SIZE_TOTAL", "1", 
             "COCO.TRAIN.BATCH_SIZE_TOTAL", "1", 
             "COCO.TRAIN.BATCH_SIZE_PER_GPU", "1", 
             "ADE20K.TEST.BATCH_SIZE_TOTAL", "2", 
-            "REF.TEST.BATCH_SIZE_TOTAL", "2", 
+            "REF.TEST.BATCH_SIZE_TOTAL", "1", 
             "WEIGHT", "True", 
             "RESUME_FROM", 
-            "/mnt/ssd/lbk-cvpr/checkpoints/xdecoder_focall_last.pt"]
+            "/mnt/ssd/lbk-cvpr/checkpoints/seem_samvitb_v1.pt"]
             // "/mnt/ssd/lbk-cvpr/syslearner/run_1/default/epoch1/syslearner.pt"],
             // /mnt/ssd/lbk-cvpr/checkpoints/focalt_in21k_yfcc_gcc_xdecoder_unicl.pt
             // /mnt/ssd/lbk-cvpr/syslearner/Syslearner_ckpt/default/epoch3_model_state_dict.pt

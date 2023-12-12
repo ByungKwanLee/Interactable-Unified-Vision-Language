@@ -23,7 +23,8 @@ VOC:
 DATASETS:
   TRAIN: ["coco_2017_train_panoptic_filtall_with_sem_seg_caption_grounding"] # instruction_train / instp_train / vlp_train
   # open vocabulary segmentation evaluation.
-  TEST: ["coco_2017_val_panoptic_with_sem_seg","refcocog_val_umd"] # ["pascalvoc_val_Point"]
+  TEST: ["coco_2017_val_panoptic_with_sem_seg", "refcocog_val_umd"] # ["pascalvoc_val_Point"]
+  # TEST: ["refcocog_val_umd"] # ["pascalvoc_val_Point"]
   SIZE_DIVISIBILITY: 32
   PROPOSAL_FILES_TRAIN: []
 
@@ -31,9 +32,8 @@ DATASETS:
 Load_LLM: false
 
 # SAM Image Resolution
-IMG_RESOLUTION: 1024
-NUM_GRIDS_HORIZON: 10
-SAM_SIZE: 'tiny' # base/large/huge/tiny
+MASK_PROPOSAL: 100
+SAM_SIZE: 'base' # base/large/huge/tiny
 
 # Syslearner
 SYSLEARNER_DIM: 512
@@ -41,7 +41,7 @@ SYSLEARNER_DIM: 512
 
 # WarmupMultiStepLR
 SOLVER:
-  BASE_LR: 0.0001
+  BASE_LR: 0.00001
   STEPS: [0.4, 0.8] #[0.88889, 0.96296]
   MAX_ITER: 1
   GAMMA: 0.1
@@ -52,8 +52,8 @@ SOLVER:
   OPTIMIZER: "ADAMW"
   LR_SCHEDULER_NAME: "WarmupMultiStepLR"
   LR_MULTIPLIER:
-    sam: 0.1
-    lang_encoder: 0.1
+    sam: 1.0
+    lang_encoder: 1.0
   WEIGHT_DECAY_NORM: 0.0
   WEIGHT_DECAY_EMBED: 0.0
   CLIP_GRADIENTS:
@@ -137,7 +137,7 @@ MODEL:
     LAYERS: 12 # 6
     AUTOGRESSIVE: True
   ENCODER:
-    NAME: transformer_encoder_fpn
+    NAME: transformer_encoder_deform
     IGNORE_VALUE: 255
     NUM_CLASSES: 133
     LOSS_WEIGHT: 1.0
@@ -191,10 +191,10 @@ MODEL:
     TRAIN_NUM_POINTS: 12544
     OVERSAMPLE_RATIO: 3.0
     IMPORTANCE_SAMPLE_RATIO: 0.75
-    TOP_GROUNDING_LAYERS: 3
-    TOP_CAPTION_LAYERS: 3
-    TOP_CAPTIONING_LAYERS: 3
-    TOP_RETRIEVAL_LAYERS: 3
+    TOP_GROUNDING_LAYERS: 10
+    TOP_CAPTION_LAYERS: 10
+    TOP_CAPTIONING_LAYERS: 10
+    TOP_RETRIEVAL_LAYERS: 10
     TEST:
       SEMANTIC_ON: True
       INSTANCE_ON: True

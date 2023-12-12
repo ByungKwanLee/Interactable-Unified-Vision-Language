@@ -85,7 +85,7 @@ class ImageEncoderViT(nn.Module):
             )
             self.blocks.append(block)
 
-        self.neck = nn.Sequential(
+        self.orig_neck = nn.Sequential(
             nn.Conv2d(
                 embed_dim,
                 out_chans,
@@ -102,28 +102,23 @@ class ImageEncoderViT(nn.Module):
             ),
             LayerNorm2d(out_chans),
         )
-        self.key_dict = {depth//4-1: 'res2', depth*2//4-1: 'res3', depth*3//4-1: 'res4'} # LBK EDIT
+        self.neck = SimpleFPN(in_dim=embed_dim, out_dims=[128, 256, 512, 1024]) # LBK EDIT
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        
         x = self.patch_embed(x)
-
         if self.pos_embed is not None:
             # by LBK EDIT
             try:
                 x = x + self.pos_embed
             except:
                 x = x + self.interpolate_pos_encoding(*x.shape[1:3])
-        
-        x_dict = {}
-        for idx, blk in enumerate(self.blocks):
+
+
+        for blk in self.blocks:
             x = blk(x)
-            if idx in self.key_dict.keys(): x_dict[self.key_dict[idx]] = x.permute(0, 3, 1, 2) # LBK
 
-        x = self.neck(x.permute(0, 3, 1, 2))
-        x_dict['res5'] = x
+        return self.neck(x.permute(0, 3, 1, 2))
 
-        return x, x_dict
     
     # by LBK EDIT
     def interpolate_pos_encoding(self, h, w):
@@ -188,8 +183,6 @@ class Block(nn.Module):
         x = self.norm1(x)
         # Window partition
         if self.window_size > 0:
-            orig_H, orig_W = x.shape[1], x.shape[2] # LBK
-            x = F.interpolate(x.permute(0,3,1,2), size=(64, 64), mode='bicubic').permute(0,2,3,1) # LBK
             H, W = x.shape[1], x.shape[2]
             x, pad_hw = window_partition(x, self.window_size)
 
@@ -197,7 +190,6 @@ class Block(nn.Module):
         # Reverse window partition
         if self.window_size > 0:
             x = window_unpartition(x, self.window_size, pad_hw, (H, W))
-            x = F.interpolate(x.permute(0,3,1,2), size=(orig_H, orig_W), mode='bicubic').permute(0,2,3,1) # LBK
 
         x = shortcut + x
         x = x + self.mlp(self.norm2(x))
@@ -416,3 +408,61 @@ class PatchEmbed(nn.Module):
         # B C H W -> B H W C
         x = x.permute(0, 2, 3, 1)
         return x
+
+
+class SimpleFPN(nn.Module):
+    def __init__(self, in_dim=768, out_dims=[128, 256, 512, 1024]):
+        super().__init__()
+        self.down_4_chan = max(out_dims[0]*2, in_dim // 2)
+        self.down_4 = nn.Sequential(
+            nn.ConvTranspose2d(in_dim, self.down_4_chan, 2, stride=2),
+            nn.GroupNorm(1, self.down_4_chan),
+            nn.GELU(),
+            nn.ConvTranspose2d(self.down_4_chan, self.down_4_chan // 2, 2, stride=2),
+            nn.GroupNorm(1, self.down_4_chan // 2),
+            nn.Conv2d(self.down_4_chan // 2, out_dims[0], 1),
+            nn.GroupNorm(1, out_dims[0]),
+            nn.GELU()
+        )
+        self.down_8_chan = max(out_dims[1], in_dim // 2)
+        self.down_8 = nn.Sequential(
+            nn.ConvTranspose2d(in_dim, self.down_8_chan, 2, stride=2),
+            nn.GroupNorm(1, self.down_8_chan),
+            nn.Conv2d(self.down_8_chan, out_dims[1], 1),
+            nn.GroupNorm(1, out_dims[1]),
+            nn.GELU()
+        )
+        self.down_16 = nn.Sequential(
+            nn.Conv2d(in_dim, out_dims[2], 1),
+            nn.GroupNorm(1, out_dims[2]),
+            nn.GELU()
+        )
+        self.down_32_chan = max(out_dims[3], in_dim * 2)
+        self.down_32 = nn.Sequential(
+            nn.Conv2d(in_dim, self.down_32_chan, 2, stride=2),
+            nn.GroupNorm(1, self.down_32_chan),
+            nn.Conv2d(self.down_32_chan, out_dims[3], 1),
+            nn.GroupNorm(1, out_dims[3]),
+            nn.GELU()
+        )
+
+        self.init_weights()
+
+    def init_weights(self):
+        # TODO
+        pass
+
+    def forward(self, x):
+        x_down_4 = self.down_4(x)
+        x_down_8 = self.down_8(x)
+        x_down_16 = self.down_16(x)
+        x_down_32 = self.down_32(x)
+
+        return {
+            'res2': x_down_4, 
+            'res3': x_down_8, 
+            'res4': x_down_16, 
+            'res5': x_down_32
+        }
+
+

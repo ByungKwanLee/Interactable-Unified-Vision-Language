@@ -143,7 +143,7 @@ class MSDeformAttnTransformerEncoder(nn.Module):
         for lvl, (H_, W_) in enumerate(spatial_shapes):
 
             ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device),
-                                          torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device))
+                                          torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device), indexing='ij')
             ref_y = ref_y.reshape(-1)[None] / (valid_ratios[:, None, lvl, 1] * H_)
             ref_x = ref_x.reshape(-1)[None] / (valid_ratios[:, None, lvl, 0] * W_)
             ref = torch.stack((ref_x, ref_y), -1)
@@ -182,7 +182,6 @@ class MSDeformAttnPixelDecoder(nn.Module):
         """
         NOTE: this interface is experimental.
         Args:
-            input_shape: shapes (channels and stride) of the input features
             transformer_dropout: dropout probability in transformer
             transformer_nheads: number of heads in transformer
             transformer_dim_feedforward: dimension of feedforward network
@@ -192,21 +191,16 @@ class MSDeformAttnPixelDecoder(nn.Module):
             norm (str or callable): normalization for all conv layers
         """
         super().__init__()
-        transformer_input_shape = {
-            k: v for k, v in input_shape.items() if k in transformer_in_features
-        }
 
         # this is the input shape of pixel decoder
-        input_shape = sorted(input_shape.items(), key=lambda x: x[1].stride)
-        self.in_features = [k for k, v in input_shape]  # starting from "res2" to "res5"
-        self.feature_strides = [v.stride for k, v in input_shape]
-        self.feature_channels = [v.channels for k, v in input_shape]
+        self.in_features = ['res2', 'res3', 'res4', 'res5']  # starting from "res2" to "res5"
+        self.feature_strides = [4, 8, 16, 32]
+        self.feature_channels = [128, 256, 512, 1024]
         
         # this is the input shape of transformer encoder (could use less features than pixel decoder
-        transformer_input_shape = sorted(transformer_input_shape.items(), key=lambda x: x[1].stride)
-        self.transformer_in_features = [k for k, v in transformer_input_shape]  # starting from "res2" to "res5"
-        transformer_in_channels = [v.channels for k, v in transformer_input_shape]
-        self.transformer_feature_strides = [v.stride for k, v in transformer_input_shape]  # to decide extra FPN layers
+        self.transformer_in_features = self.in_features[1:]
+        transformer_in_channels = self.feature_channels[1:]
+        self.transformer_feature_strides = self.feature_strides[1:]
 
         self.transformer_num_feature_levels = len(self.transformer_in_features)
         if self.transformer_num_feature_levels > 1:
@@ -318,7 +312,7 @@ class MSDeformAttnPixelDecoder(nn.Module):
         return ret
 
     @autocast(enabled=False)
-    def forward_features(self, features):
+    def forward(self, features):
         srcs = []
         pos = []
         # Reverse feature maps into top-down order (from low to high resolution)
@@ -362,7 +356,7 @@ class MSDeformAttnPixelDecoder(nn.Module):
                 multi_scale_features.append(o)
                 num_cur_levels += 1
 
-        return self.mask_features(out[-1]), out[0], multi_scale_features
+        return self.mask_features(out[-1]), multi_scale_features
 
 
 
