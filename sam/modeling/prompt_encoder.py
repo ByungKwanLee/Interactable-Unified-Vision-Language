@@ -48,7 +48,6 @@ class PromptEncoder(nn.Module):
         self.not_a_point_embed = nn.Embedding(1, embed_dim)
 
         # LBK EDIT
-        # self.mask_input_size = (4 * image_embedding_size[0], 4 * image_embedding_size[1])
         self.mask_downscaling = nn.Sequential(
             nn.Conv2d(1, mask_in_chans // 4, kernel_size=2, stride=2),
             LayerNorm2d(mask_in_chans // 4),
@@ -59,7 +58,6 @@ class PromptEncoder(nn.Module):
             nn.Conv2d(mask_in_chans, embed_dim, kernel_size=1),
         )
         self.no_mask_embed = nn.Embedding(1, embed_dim)
-        self.general_embed = nn.Embedding(1, embed_dim) # LBK EDIT
 
     def get_dense_pe(self) -> torch.Tensor:
         """

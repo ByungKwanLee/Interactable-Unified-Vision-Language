@@ -5,9 +5,9 @@ GPU_DEVICE="0,1,2,3"
 length=${#GPU_DEVICE}
 port=$(($RANDOM%10000+30000))
 n_gpu=$(((length+1)/2))
-image_bath=2
+image_bath=8
 test_batch=2
-image_resol=1024
+image_resol=256
 
 CUDA_VISIBLE_DEVICES=$GPU_DEVICE mpirun -n $n_gpu python entry.py train \
             --conf_files configs/step1.yaml \

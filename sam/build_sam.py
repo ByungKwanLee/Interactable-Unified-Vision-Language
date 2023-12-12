@@ -100,12 +100,9 @@ def _build_sam(
     # LBK EDIT
     for name, param in sam.named_parameters():
         if name.startswith('image_encoder.'):
-            param.requires_grad = False
+            param.requires_grad = True
         else:
-            if 'general_embed' in name:
-                param.requires_grad = False
-            else:
-                param.requires_grad = False
+            param.requires_grad = False
     return sam
 
 sam_model_registry = {

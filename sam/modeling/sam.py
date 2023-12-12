@@ -75,7 +75,6 @@ class Sam(nn.Module):
         #       points=points,
         #       boxes=image_record.get("boxes", None),
         #       masks=image_record.get("mask_inputs", None),
-        #       general=image_record.get("general", True),
         #   )
         #   src_outputs, hyper_in = self.mask_decoder(
         #       image_embeddings=curr_embedding.unsqueeze(0),
