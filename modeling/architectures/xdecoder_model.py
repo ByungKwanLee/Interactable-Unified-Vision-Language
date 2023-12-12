@@ -331,7 +331,7 @@ class GeneralizedXdecoder(nn.Module):
     def forward_seg(self, batched_inputs):
         images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, 32)
+        images = ImageList.from_tensors(images, 1024)
 
         self.sem_seg_head.predictor.lang_encoder.get_text_embeddings(self.train_class_names, is_eval=False)
 
@@ -481,7 +481,7 @@ class GeneralizedXdecoder(nn.Module):
         images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
         
-        images = ImageList.from_tensors(images, 32)
+        images = ImageList.from_tensors(images, 1024)
         targets = targets_grounding = queries_grounding = None
         outputs = self.sem_seg_head(self.backbone(images.tensor), target_queries=queries_grounding)
 
@@ -546,7 +546,7 @@ class GeneralizedXdecoder(nn.Module):
     def evaluate_llm_captioning(self, batched_inputs):
         images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, 32)
+        images = ImageList.from_tensors(images, 1024)
 
         extra = {"token_embedding": self.sem_seg_head.predictor.lang_encoder.lang_encoder.token_embedding,
                  "lang_encoder": self.sem_seg_head.predictor.lang_encoder,
@@ -592,7 +592,7 @@ class GeneralizedXdecoder(nn.Module):
     def evaluate_vqa(self, batched_inputs):
         images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, 32)
+        images = ImageList.from_tensors(images, 1024)
 
         extra = {"token_embedding": self.sem_seg_head.predictor.lang_encoder.lang_encoder.token_embedding,
                  "lang_encoder": self.sem_seg_head.predictor.lang_encoder,
@@ -632,7 +632,7 @@ class GeneralizedXdecoder(nn.Module):
     def evaluate_grounding(self, batched_inputs):
         images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, 32)
+        images = ImageList.from_tensors(images, 1024)
         features = self.backbone(images.tensor)
         extra = {}
 
@@ -698,7 +698,7 @@ class GeneralizedXdecoder(nn.Module):
         # getting image 
         images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, 32)
+        images = ImageList.from_tensors(images, 1024)
 
         # LBK SAM propagation - (1)
         image_embeddings, hier_embeddings_dict = self.backbone.forward_image_embedding(images)
